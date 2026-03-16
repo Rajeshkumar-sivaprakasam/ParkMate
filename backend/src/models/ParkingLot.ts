@@ -30,6 +30,10 @@ export interface IParkingLotDocument extends Document {
     lat: number;
     lng: number;
   };
+  location: {
+    type: string;
+    coordinates: number[];
+  };
   description?: string;
   images: string[];
   totalSpots: number;
@@ -49,6 +53,7 @@ export interface IParkingLotDocument extends Document {
   currency: string;
   amenities: string[];
   isActive: boolean;
+  requireApproval: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,8 +71,19 @@ const parkingLotSchema = new Schema<IParkingLotDocument>(
       trim: true,
     },
     coordinates: {
-      lat: { type: Number, required: true },
-      lng: { type: Number, required: true },
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number],
+        required: true,
+      },
     },
     description: {
       type: String,
@@ -135,8 +151,19 @@ const parkingLotSchema = new Schema<IParkingLotDocument>(
 );
 
 // Indexes
-parkingLotSchema.index({ coordinates: "2dsphere" });
+// parkingLotSchema.index({ location: "2dsphere" });
 parkingLotSchema.index({ name: "text", address: "text" });
+
+// Pre-validate hook to sync coordinates to location
+// parkingLotSchema.pre("validate", function (next) {
+//   if (this.isModified("coordinates") && this.coordinates) {
+//     this.location = {
+//       type: "Point",
+//       coordinates: [this.coordinates.lng, this.coordinates.lat],
+//     };
+//   }
+//   next();
+// });
 
 export const ParkingLot = mongoose.model<IParkingLotDocument>(
   "ParkingLot",

@@ -14,7 +14,7 @@ router.get("/lots", async (req, res, next) => {
     if (lat && lng) {
       // Geo-spatial query
       lots = await ParkingLot.find({
-        coordinates: {
+        location: {
           $near: {
             $geometry: {
               type: "Point",

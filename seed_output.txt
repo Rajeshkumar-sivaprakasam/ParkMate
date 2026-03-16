@@ -1,0 +1,42 @@
+
+> @kilo-car/backend@1.0.0 seed
+> tsx src/seed.ts
+
+Connecting to MongoDB...
+(node:11524) [MONGOOSE] Warning: Duplicate schema index on {"email":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11524) [MONGOOSE] Warning: Duplicate schema index on {"code":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+Connected to MongoDB
+
+Clearing existing data...
+Existing data cleared
+
+Creating Users...
+Created 3 users: admin@kilocar.com, user@example.com, visitor@example.com
+
+Creating Organizations...
+Created 2 organizations
+
+Creating Parking Lots...
+Error seeding data: MongoServerError: Can't extract geo keys: { _id: ObjectId('69b8505dbec75530921f8c09'), name: "Kuala Lumpur Central Parking", address: "Jalan Sultan Ismail, Kuala Lumpur", coordinates: { lat: 3.1427, lng: 101.7032 }, description: "Premium parking in the heart of KL", images: [ "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=800" ], totalSpots: 500, availableSpots: 127, operatingHours: { monday: { open: "00:00", close: "23:59", isClosed: false }, tuesday: { open: "00:00", close: "23:59", isClosed: false }, wednesday: { open: "00:00", close: "23:59", isClosed: false }, thursday: { open: "00:00", close: "23:59", isClosed: false }, friday: { open: "00:00", close: "23:59", isClosed: false }, saturday: { open: "00:00", close: "23:59", isClosed: false }, sunday: { open: "00:00", close: "23:59", isClosed: false } }, hourlyRate: 5, dailyRate: 40, monthlyRate: 800, currency: "MYR", amenities: [ "CCTV", "Security", "EV Charging", "Accessible", "Car Wash" ], isActive: true, createdAt: new Date(1773686877819), updatedAt: new Date(1773686877819), __v: 0 }  can't project geometry into spherical CRS: { lat: 3.1427, lng: 101.7032 }
+    at InsertOneOperation.handleOk (D:\secondary\kilo-car\node_modules\mongodb\src\operations\insert.ts:79:13)
+    at tryOperation (D:\secondary\kilo-car\node_modules\mongodb\src\operations\execute_operation.ts:290:26)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async executeOperation (D:\secondary\kilo-car\node_modules\mongodb\src\operations\execute_operation.ts:119:12)
+    at async Collection.insertOne (D:\secondary\kilo-car\node_modules\mongodb\src\collection.ts:294:12) {
+  errorLabelSet: Set(0) {},
+  errorResponse: {
+    index: 0,
+    code: 16755,
+    errmsg: `Can't extract geo keys: { _id: ObjectId('69b8505dbec75530921f8c09'), name: "Kuala Lumpur Central Parking", address: "Jalan Sultan Ismail, Kuala Lumpur", coordinates: { lat: 3.1427, lng: 101.7032 }, description: "Premium parking in the heart of KL", images: [ "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=800" ], totalSpots: 500, availableSpots: 127, operatingHours: { monday: { open: "00:00", close: "23:59", isClosed: false }, tuesday: { open: "00:00", close: "23:59", isClosed: false }, wednesday: { open: "00:00", close: "23:59", isClosed: false }, thursday: { open: "00:00", close: "23:59", isClosed: false }, friday: { open: "00:00", close: "23:59", isClosed: false }, saturday: { open: "00:00", close: "23:59", isClosed: false }, sunday: { open: "00:00", close: "23:59", isClosed: false } }, hourlyRate: 5, dailyRate: 40, monthlyRate: 800, currency: "MYR", amenities: [ "CCTV", "Security", "EV Charging", "Accessible", "Car Wash" ], isActive: true, createdAt: new Date(1773686877819), updatedAt: new Date(1773686877819), __v: 0 }  can't project geometry into spherical CRS: { lat: 3.1427, lng: 101.7032 }`
+  },
+  index: 0,
+  code: 16755
+}
+npm error Lifecycle script `seed` failed with error:
+npm error code 1
+npm error path D:\secondary\kilo-car\backend
+npm error workspace @kilo-car/backend@1.0.0
+npm error location D:\secondary\kilo-car\backend
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c tsx src/seed.ts

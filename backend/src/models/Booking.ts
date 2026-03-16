@@ -16,6 +16,14 @@ export interface IBookingDocument extends Document {
     | "cancelled"
     | "no_show"
     | "expired";
+  approvalStatus:
+    | "auto_approved"
+    | "pending_approval"
+    | "approved"
+    | "rejected";
+  approvedBy?: mongoose.Types.ObjectId;
+  approvedAt?: Date;
+  rejectionReason?: string;
   date: Date;
   startTime: string;
   endTime: string;
@@ -107,6 +115,22 @@ const bookingSchema = new Schema<IBookingDocument>(
         "expired",
       ],
       default: "pending",
+    },
+    approvalStatus: {
+      type: String,
+      enum: ["auto_approved", "pending_approval", "approved", "rejected"],
+      default: "auto_approved",
+    },
+    approvedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
     },
     date: {
       type: Date,

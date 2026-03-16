@@ -20,28 +20,29 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      // Mock login - in production would call API
-      const mockResponse = {
-        success: true,
-        data: {
-          user: {
-            id: '1',
-            email: data.email,
-            firstName: 'John',
-            lastName: 'Doe',
-            role: 'user',
-          },
-          token: 'mock-jwt-token',
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      };
+        body: JSON.stringify(data),
+      });
 
-      if (mockResponse.success) {
-        login(mockResponse.data.user, mockResponse.data.token);
-        toast.success('Welcome back!');
+      const result = await response.json();
+      console.log('Login response:', result); // Debug log
+
+      if (result.success) {
+        login(result.data.user, result.data.token);
+        toast.success(`Welcome back, ${result.data.user.firstName}!`);
         navigate('/');
+      } else {
+        toast.error(result.message || 'Invalid email or password');
       }
     } catch (error) {
-      toast.error('Invalid email or password');
+      console.error('Login error:', error);
+      toast.error('Unable to connect to server. Make sure backend is running.');
     } finally {
       setIsLoading(false);
     }
@@ -115,8 +116,8 @@ export default function LoginPage() {
                     {...register('password', { 
                       required: 'Password is required',
                       minLength: {
-                        value: 8,
-                        message: 'Password must be at least 8 characters'
+                        value: 6,
+                        message: 'Password must be at least 6 characters'
                       }
                     })}
                     className="input pl-10 pr-10"
@@ -178,9 +179,15 @@ export default function LoginPage() {
                 <span className="px-2 bg-gray-50 text-gray-500">Demo Credentials</span>
               </div>
             </div>
-            <div className="mt-4 p-4 bg-gray-100 rounded-lg text-sm text-gray-600">
-              <p>Email: demo@kilocar.com</p>
-              <p>Password: demo1234</p>
+            <div className="mt-4 space-y-3">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium text-blue-800">Admin Account:</p>
+                <p className="text-sm text-blue-600">admin@kilocar.com / admin123</p>
+              </div>
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm font-medium text-green-800">User Account:</p>
+                <p className="text-sm text-green-600">user@example.com / user123</p>
+              </div>
             </div>
           </div>
         </div>

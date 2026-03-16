@@ -9,7 +9,14 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/auth.js";
 import parkingRoutes from "./routes/parking.js";
 import bookingRoutes from "./routes/booking.js";
+import bookingApprovalRoutes from "./routes/booking-approval.js";
 import vehicleRoutes from "./routes/vehicle.js";
+import webhookRoutes from "./routes/webhook.js";
+import refundPolicyRoutes from "./routes/refund-policy.js";
+import analyticsRoutes from "./routes/analytics.js";
+import invoiceRoutes from "./routes/invoice.js";
+import calendarRoutes from "./routes/calendar.js";
+import organizationRoutes from "./routes/organization.js";
 
 const app = express();
 
@@ -17,7 +24,7 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: config.frontendUrl,
+    origin: "*",
     credentials: true,
   }),
 );
@@ -39,7 +46,14 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/parking", parkingRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/bookings", bookingApprovalRoutes);
 app.use("/api/vehicles", vehicleRoutes);
+app.use("/api/webhooks", webhookRoutes);
+app.use("/api/refund-policies", refundPolicyRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/invoices", invoiceRoutes);
+app.use("/api/calendar", calendarRoutes);
+app.use("/api/organizations", organizationRoutes);
 
 // Error handling
 app.use(notFoundHandler);
