@@ -43,7 +43,6 @@ const vehicleSchema = new Schema<IVehicleDocument>(
     },
     year: {
       type: Number,
-      required: [true, "Year is required"],
       min: 1900,
       max: new Date().getFullYear() + 1,
     },

@@ -52,6 +52,7 @@ router.post(
     body("make").notEmpty().withMessage("Make is required"),
     body("model").notEmpty().withMessage("Model is required"),
     body("year")
+      .optional()
       .isInt({ min: 1900, max: new Date().getFullYear() + 1 })
       .withMessage("Valid year is required"),
     body("color").notEmpty().withMessage("Color is required"),

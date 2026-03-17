@@ -1,7 +1,9 @@
-import { Router } from "express";
-import { body } from "express-validator";
+import { Router, Response, NextFunction } from "express";
+import { body, param } from "express-validator";
 import * as authController from "../controllers/authController.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, authorize } from "../middleware/auth.js";
+import { User } from "../models/index.js";
+import type { AuthRequest } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -46,6 +48,100 @@ router.put(
     body("preferences").optional(),
   ],
   authController.updateProfile,
+);
+
+// Get all users (admin only)
+router.get(
+  "/users",
+  authenticate,
+  authorize("admin", "superadmin"),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { page = 1, limit = 50, role, search } = req.query;
+
+      const query: Record<string, unknown> = {};
+      if (role) {
+        query.role = role;
+      }
+      if (search) {
+        query.$or = [
+          { firstName: { $regex: search, $options: "i" } },
+          { lastName: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ];
+      }
+
+      const users = await User.find(query)
+        .select("-password")
+        .sort({ createdAt: -1 })
+        .skip((Number(page) - 1) * Number(limit))
+        .limit(Number(limit));
+
+      const total = await User.countDocuments(query);
+
+      res.json({
+        success: true,
+        message: "Users retrieved successfully",
+        data: users,
+        meta: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Change password (protected)
+router.post(
+  "/change-password",
+  authenticate,
+  [
+    body("currentPassword")
+      .notEmpty()
+      .withMessage("Current password is required"),
+    body("newPassword")
+      .isLength({ min: 6 })
+      .withMessage("New password must be at least 6 characters"),
+  ],
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user?.userId;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Verify current password
+      const isMatch = await user.comparePassword(currentPassword);
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          message: "Current password is incorrect",
+        });
+      }
+
+      // Update password
+      user.password = newPassword;
+      await user.save();
+
+      res.json({
+        success: true,
+        message: "Password changed successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 );
 
 export default router;

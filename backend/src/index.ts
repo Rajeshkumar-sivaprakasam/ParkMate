@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 // Routes
 import authRoutes from "./routes/auth.js";
 import parkingRoutes from "./routes/parking.js";
+import parkingSpotRoutes from "./routes/parking-spots.js";
 import bookingRoutes from "./routes/booking.js";
 import bookingApprovalRoutes from "./routes/booking-approval.js";
 import vehicleRoutes from "./routes/vehicle.js";
@@ -45,8 +46,9 @@ app.get("/health", (req, res) => {
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/parking", parkingRoutes);
+app.use("/api/parking-spots", parkingSpotRoutes);
+app.use("/api/bookings", bookingApprovalRoutes); // Must be before bookingRoutes
 app.use("/api/bookings", bookingRoutes);
-app.use("/api/bookings", bookingApprovalRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/refund-policies", refundPolicyRoutes);

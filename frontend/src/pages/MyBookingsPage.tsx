@@ -16,10 +16,17 @@ interface Booking {
     make: string;
     model: string;
   };
+  spotId?: {
+    _id: string;
+    spotNumber: string;
+    floor: string;
+    spotType: string;
+  };
   date: string;
   startTime: string;
   endTime: string;
   status: 'pending' | 'confirmed' | 'checked_in' | 'completed' | 'cancelled';
+  approvalStatus?: 'pending_approval' | 'approved' | 'rejected' | 'auto_approved';
   totalAmount: number;
   currency?: string;
   refundAmount?: number;
@@ -203,6 +210,19 @@ export default function MyBookingsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     {getStatusBadge(booking.status)}
+                    {booking.approvalStatus && booking.approvalStatus !== 'auto_approved' && (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        booking.approvalStatus === 'approved' ? 'bg-green-100 text-green-800' :
+                        booking.approvalStatus === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
+                        booking.approvalStatus === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {booking.approvalStatus === 'pending_approval' ? 'Pending Approval' : 
+                         booking.approvalStatus === 'approved' ? 'Approved' :
+                         booking.approvalStatus === 'rejected' ? 'Rejected' :
+                         booking.approvalStatus}
+                      </span>
+                    )}
                     {booking.refundStatus && booking.refundStatus !== 'none' && (
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         booking.refundStatus === 'processed' ? 'bg-green-100 text-green-800' :
@@ -223,6 +243,12 @@ export default function MyBookingsPage() {
                       <MapPin className="w-4 h-4" />
                       <span>{booking.lotId?.address || 'N/A'}</span>
                     </div>
+                    {booking.spotId && (
+                      <div className="flex items-center gap-1 text-blue-600">
+                        <MapPin className="w-4 h-4" />
+                        <span>Spot: {booking.spotId.spotNumber}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
                       <Car className="w-4 h-4" />
                       <span>{booking.vehicleId?.licensePlate || 'N/A'}</span>

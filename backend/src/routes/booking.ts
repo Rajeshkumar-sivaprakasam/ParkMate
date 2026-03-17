@@ -23,6 +23,7 @@ router.get("/", authenticate, async (req: AuthRequest, res, next) => {
     const bookings = await Booking.find(query)
       .populate("lotId", "name address hourlyRate")
       .populate("vehicleId", "licensePlate make model")
+      .populate("spotId", "spotNumber floor row column spotType status")
       .sort({ date: -1 })
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit));
@@ -176,8 +177,8 @@ router.post(
     body("vehicleId").notEmpty().withMessage("Vehicle ID is required"),
     body("lotId").notEmpty().withMessage("Lot ID is required"),
     body("date").isISO8601().withMessage("Valid date is required"),
-    body("startTime").notEmpty().withMessage("Start time is required"),
-    body("endTime").notEmpty().withMessage("End time is required"),
+    body("startTime").optional(),
+    body("endTime").optional(),
   ],
   async (req: AuthRequest, res, next) => {
     try {
@@ -185,9 +186,11 @@ router.post(
         vehicleId,
         lotId,
         zoneId,
+        spotId,
         date,
         startTime,
         endTime,
+        bookingType = "hourly",
         isRecurring,
         recurringPattern,
         isVisitorBooking,
@@ -209,29 +212,43 @@ router.post(
         throw new AppError("Parking lot not found", 404, "LOT_NOT_FOUND");
       }
 
-      // Calculate duration and amount
-      const startHour = parseInt(startTime.split(":")[0], 10);
-      const endHour = parseInt(endTime.split(":")[0], 10);
-      // Ensure minimum duration of 1 hour
-      let duration = endHour - startHour;
-      if (duration <= 0) {
-        duration = 1; // Minimum 1 hour
-      }
-      const hourlyRate = zoneId
-        ? (await import("../models/index.js")).ParkingZone.findById(
-            zoneId,
-          ).then((z) => z?.hourlyRate || lot.hourlyRate)
-        : lot.hourlyRate;
-      const totalAmount = duration * (await Promise.resolve(hourlyRate));
+      // Calculate duration and amount based on booking type
+      let totalAmount = 0;
+      let duration = 1;
 
-      // Check if lot requires approval
-      const requireApproval =
-        (lot as unknown as { requireApproval?: boolean }).requireApproval ||
-        false;
-      const approvalStatus = requireApproval
-        ? "pending_approval"
-        : "auto_approved";
-      const initialStatus = requireApproval ? "pending" : "confirmed";
+      if (bookingType === "hourly") {
+        // Validate time is provided for hourly bookings
+        if (!startTime || !endTime) {
+          throw new AppError(
+            "Start time and end time are required for hourly bookings",
+            400,
+            "TIME_REQUIRED",
+          );
+        }
+        const startHour = parseInt(startTime.split(":")[0], 10);
+        const endHour = parseInt(endTime.split(":")[0], 10);
+        duration = endHour - startHour;
+        if (duration <= 0) {
+          duration = 1; // Minimum 1 hour
+        }
+        const hourlyRate = zoneId
+          ? (await import("../models/index.js")).ParkingZone.findById(
+              zoneId,
+            ).then((z) => z?.hourlyRate || lot.hourlyRate)
+          : lot.hourlyRate;
+        totalAmount = duration * (await Promise.resolve(hourlyRate));
+      } else if (bookingType === "daily") {
+        totalAmount = lot.dailyRate || lot.hourlyRate * 10;
+        duration = 10; // Full day
+      } else if (bookingType === "monthly") {
+        totalAmount =
+          lot.monthlyRate || lot.dailyRate * 20 || lot.hourlyRate * 200;
+        duration = 240; // Approximate hours in a month
+      }
+
+      // All bookings require admin approval by default
+      const approvalStatus = "pending_approval";
+      const initialStatus = "pending";
 
       // Generate QR code and passcode
       const qrCodeData = {
@@ -251,7 +268,8 @@ router.post(
         vehicleId,
         lotId,
         zoneId,
-        bookingType: "hourly",
+        spotId,
+        bookingType: bookingType || "hourly",
         status: initialStatus || "confirmed",
         approvalStatus: approvalStatus || "auto_approved",
         date: new Date(date),

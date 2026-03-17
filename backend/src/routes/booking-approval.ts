@@ -21,11 +21,16 @@ router.get(
   authorize("admin", "superadmin"),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { page = 1, limit = 20, lotId } = req.query;
+      const { page = 1, limit = 20, lotId, status } = req.query;
 
-      const query: Record<string, unknown> = {
-        approvalStatus: "pending_approval",
-      };
+      const query: Record<string, unknown> = {};
+
+      // If status is provided, filter by it, otherwise show pending_approval
+      if (status) {
+        query.status = status;
+      } else {
+        query.approvalStatus = "pending_approval";
+      }
 
       if (lotId) {
         query.lotId = lotId;
@@ -35,7 +40,8 @@ router.get(
         .populate("userId", "firstName lastName email phone company")
         .populate("lotId", "name address hourlyRate")
         .populate("vehicleId", "licensePlate make model")
-        .sort({ createdAt: 1 })
+        .populate("spotId", "spotNumber floor row column spotType status")
+        .sort({ createdAt: -1 })
         .skip((Number(page) - 1) * Number(limit))
         .limit(Number(limit));
 
@@ -44,6 +50,47 @@ router.get(
       res.json({
         success: true,
         message: "Pending approval bookings retrieved successfully",
+        data: bookings,
+        meta: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Get ALL bookings (admin only) - for debugging
+router.get(
+  "/all",
+  authenticate,
+  authorize("admin", "superadmin"),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { page = 1, limit = 50, status, approvalStatus } = req.query;
+
+      const query: Record<string, unknown> = {};
+      if (status) query.status = status;
+      if (approvalStatus) query.approvalStatus = approvalStatus;
+
+      const bookings = await Booking.find(query)
+        .populate("userId", "firstName lastName email phone company")
+        .populate("lotId", "name address hourlyRate")
+        .populate("vehicleId", "licensePlate make model")
+        .populate("spotId", "spotNumber floor row column spotType status")
+        .sort({ createdAt: -1 })
+        .skip((Number(page) - 1) * Number(limit))
+        .limit(Number(limit));
+
+      const total = await Booking.countDocuments(query);
+
+      res.json({
+        success: true,
+        message: "All bookings retrieved successfully",
         data: bookings,
         meta: {
           page: Number(page),

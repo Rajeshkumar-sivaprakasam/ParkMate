@@ -10,6 +10,8 @@ interface Vehicle {
   model: string;
   color?: string;
   year?: number;
+  vehicleType?: string;
+  registrationExpiry?: string;
   isDefault: boolean;
 }
 
@@ -25,7 +27,8 @@ export default function VehiclesPage() {
     make: '',
     model: '',
     color: '',
-    year: '',
+    vehicleType: 'sedan',
+    registrationExpiry: '',
     isDefault: false,
   });
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -73,7 +76,8 @@ export default function VehiclesPage() {
         },
         body: JSON.stringify({
           ...formData,
-          year: formData.year ? parseInt(formData.year) : undefined,
+          vehicleType: formData.vehicleType,
+          registrationExpiry: formData.registrationExpiry ? new Date(formData.registrationExpiry).toISOString() : undefined,
         }),
       });
       
@@ -123,7 +127,8 @@ export default function VehiclesPage() {
       make: vehicle.make,
       model: vehicle.model,
       color: vehicle.color || '',
-      year: vehicle.year?.toString() || '',
+      vehicleType: vehicle.vehicleType || 'sedan',
+      registrationExpiry: vehicle.registrationExpiry ? vehicle.registrationExpiry.split('T')[0] : '',
       isDefault: vehicle.isDefault,
     });
     setShowForm(true);
@@ -137,7 +142,8 @@ export default function VehiclesPage() {
       make: '',
       model: '',
       color: '',
-      year: '',
+      vehicleType: 'sedan',
+      registrationExpiry: '',
       isDefault: false,
     });
   };
@@ -292,18 +298,34 @@ export default function VehiclesPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Year
+                      Vehicle Type
                     </label>
-                    <input
-                      type="number"
-                      value={formData.year}
-                      onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                    <select
+                      value={formData.vehicleType}
+                      onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
                       className="input"
-                      placeholder="2024"
-                      min="1900"
-                      max="2030"
-                    />
+                    >
+                      <option value="sedan">Sedan</option>
+                      <option value="suv">SUV</option>
+                      <option value="van">Van</option>
+                      <option value="motorcycle">Motorcycle</option>
+                      <option value="truck">Truck</option>
+                      <option value="compact">Compact</option>
+                    </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Registration Expiry *
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.registrationExpiry}
+                    onChange={(e) => setFormData({ ...formData, registrationExpiry: e.target.value })}
+                    className="input"
+                    required
+                  />
                 </div>
 
                 <div className="flex items-center">

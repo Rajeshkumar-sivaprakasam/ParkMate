@@ -144,6 +144,10 @@ const parkingLotSchema = new Schema<IParkingLotDocument>(
       type: Boolean,
       default: true,
     },
+    requireApproval: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

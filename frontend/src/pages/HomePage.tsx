@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, MapPin, Clock, DollarSign, Zap, Car, Loader2, X, Calendar } from 'lucide-react';
+import { Search, MapPin, Clock, DollarSign, Zap, Car, Loader2, X, Calendar, Map, List } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { toast } from 'sonner';
 
@@ -16,6 +16,7 @@ interface ParkingLot {
   availableSpots: number;
   hourlyRate: number;
   dailyRate: number;
+  monthlyRate?: number;
   amenities: string[];
   images?: string[];
   image?: string;
@@ -41,6 +42,7 @@ export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [filterEV, setFilterEV] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLot, setSelectedLot] = useState<ParkingLot | null>(null);
@@ -49,6 +51,10 @@ export default function HomePage() {
   const [selectedVehicle, setSelectedVehicle] = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [endTime, setEndTime] = useState('');
+  const [bookingType, setBookingType] = useState<'hourly' | 'daily' | 'monthly'>('hourly');
+  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [selectedSpot, setSelectedSpot] = useState('');
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
@@ -57,6 +63,13 @@ export default function HomePage() {
       fetchVehicles();
     }
   }, [token]);
+
+  // Fetch available slots when date/time changes (only for hourly bookings)
+  useEffect(() => {
+    if (selectedDate && selectedTime && endTime && bookingType === 'hourly' && selectedLot) {
+      fetchAvailableSlots();
+    }
+  }, [selectedDate, selectedTime, endTime, bookingType, selectedLot]);
 
   const fetchParkingLots = async () => {
     setLoading(true);
@@ -117,13 +130,43 @@ export default function HomePage() {
     setSelectedDate('');
     setSelectedTime('');
     setEndTime('');
+    setBookingType('hourly');
     setSelectedVehicle(vehicles[0]?._id || '');
     setSelectedLot(null);
+    setAvailableSlots([]);
+    setSelectedSpot('');
+  };
+
+  // Fetch available slots when date/time changes
+  const fetchAvailableSlots = async () => {
+    if (!selectedLot?._id || !selectedDate || !selectedTime || !endTime) return;
+    
+    setSlotsLoading(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/parking-spots/lot/${selectedLot._id}?date=${selectedDate}&startTime=${selectedTime}&endTime=${endTime}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const result = await response.json();
+      if (result.success) {
+        setAvailableSlots(result.data.spots || []);
+      }
+    } catch (error) {
+      console.error('Error fetching slots:', error);
+    } finally {
+      setSlotsLoading(false);
+    }
   };
 
   const handleConfirmBooking = async () => {
-    if (!token || !selectedLot || !selectedVehicle || !selectedDate || !selectedTime || !endTime) {
-      toast.error('Please fill in all fields');
+    if (!token || !selectedLot || !selectedVehicle || !selectedDate) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // For hourly bookings, time is required
+    if (bookingType === 'hourly' && (!selectedTime || !endTime)) {
+      toast.error('Please select start and end time');
       return;
     }
 
@@ -141,6 +184,8 @@ export default function HomePage() {
           date: selectedDate,
           startTime: selectedTime,
           endTime: endTime,
+          spotId: selectedSpot || undefined,
+          bookingType: bookingType,
         }),
       });
       
@@ -243,6 +288,31 @@ export default function HomePage() {
           {loading ? 'Loading...' : `${filteredLots.length} Parking Locations`}
         </h2>
         <div className="flex items-center space-x-3">
+          {/* View Toggle */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center space-x-1 px-3 py-1.5 rounded-md transition-colors ${
+                viewMode === 'list' 
+                  ? 'bg-white text-primary-600 shadow-sm' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <List className="w-4 h-4" />
+              <span className="text-sm">List</span>
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`flex items-center space-x-1 px-3 py-1.5 rounded-md transition-colors ${
+                viewMode === 'map' 
+                  ? 'bg-white text-primary-600 shadow-sm' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Map className="w-4 h-4" />
+              <span className="text-sm">Map</span>
+            </button>
+          </div>
           <button
             onClick={() => setFilterEV(!filterEV)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg border ${
@@ -257,7 +327,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Parking Lots Grid */}
+      {/* Parking Lots View */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
@@ -268,7 +338,50 @@ export default function HomePage() {
           <p className="text-gray-500 text-lg">No parking lots found</p>
           <p className="text-gray-400">Try adjusting your search or filters</p>
         </div>
+      ) : viewMode === 'map' ? (
+        /* Map View */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Map Placeholder */}
+          <div className="lg:col-span-2 bg-gray-100 rounded-xl min-h-[500px] flex items-center justify-center">
+            <div className="text-center">
+              <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg font-medium">Interactive Map</p>
+              <p className="text-gray-400 text-sm">View parking locations on map</p>
+            </div>
+          </div>
+          {/* Location List */}
+          <div className="space-y-4 max-h-[500px] overflow-y-auto">
+            <h3 className="font-semibold text-gray-900">Where can I park?</h3>
+            {filteredLots.map((lot) => (
+              <div 
+                key={lot._id} 
+                onClick={() => handleBookNow(lot)}
+                className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-primary-300 cursor-pointer transition-all"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-medium text-gray-900">{lot.name}</h4>
+                  <span className="text-primary-600 font-bold">RM {lot.hourlyRate}/hr</span>
+                </div>
+                <div className="flex items-center text-gray-500 text-sm mb-2">
+                  <MapPin className="w-4 h-4 mr-1" />
+                  {lot.address}
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className={`px-2 py-0.5 rounded-full ${lot.availableSpots > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {lot.availableSpots} spots available
+                    </span>
+                  </div>
+                  <button className="text-primary-600 text-sm font-medium hover:underline">
+                    Book Now →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
+        /* List View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredLots.map((lot) => (
             <div key={lot._id} className="card-hover group">
@@ -400,6 +513,51 @@ export default function HomePage() {
                   )}
                 </div>
 
+                {/* Slot Selection */}
+                {selectedDate && selectedTime && endTime && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <MapPin className="w-4 h-4 inline mr-1" />
+                      Select Parking Spot
+                    </label>
+                    {slotsLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                        <span className="ml-2 text-sm text-gray-500">Loading spots...</span>
+                      </div>
+                    ) : availableSlots.length > 0 ? (
+                      <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
+                        {availableSlots.map((spot) => (
+                          <button
+                            key={spot._id}
+                            type="button"
+                            onClick={() => setSelectedSpot(spot._id)}
+                            className={`p-2 text-xs rounded-lg border transition-all ${
+                              selectedSpot === spot._id
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : spot.status === 'occupied'
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                                : 'bg-white hover:bg-blue-50 border-gray-200 text-gray-700'
+                            }`}
+                            disabled={spot.status === 'occupied'}
+                          >
+                            <div className="font-semibold">{spot.spotNumber}</div>
+                            <div className="text-xs opacity-75">{spot.spotType || 'Standard'}</div>
+                            <div className="text-xs">{spot.floor || 'F1'}</div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No spots available for selected time.</p>
+                    )}
+                    {availableSlots.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {availableSlots.filter(s => s.status !== 'occupied').length} spots available
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Date Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -416,41 +574,77 @@ export default function HomePage() {
                   />
                 </div>
 
-                {/* Time Selection */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Start Time
-                    </label>
-                    <input
-                      type="time"
-                      value={selectedTime}
-                      onChange={(e) => setSelectedTime(e.target.value)}
-                      className="input"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      End Time
-                    </label>
-                    <input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="input"
-                      required
-                    />
+                {/* Booking Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Booking Type
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['hourly', 'daily', 'monthly'] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setBookingType(type)}
+                        className={`p-2 rounded-lg border text-sm font-medium transition-all ${
+                          bookingType === type
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
+                {/* Time Selection - Only for hourly bookings */}
+                {bookingType === 'hourly' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Start Time
+                      </label>
+                      <input
+                        type="time"
+                        value={selectedTime}
+                        onChange={(e) => setSelectedTime(e.target.value)}
+                        className="input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        End Time
+                      </label>
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="input"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Price Estimate */}
-                {selectedDate && selectedTime && endTime && (
+                {selectedLot && (
                   <div className="bg-primary-50 rounded-lg p-4">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-700">Estimated Price:</span>
                       <span className="text-xl font-bold text-primary-700">
-                        RM {selectedLot.hourlyRate}
+                        {bookingType === 'hourly' && selectedDate && selectedTime && endTime && (() => {
+                          const startHour = parseInt(selectedTime.split(':')[0], 10);
+                          const endHour = parseInt(endTime.split(':')[0], 10);
+                          const hours = Math.max(1, endHour - startHour);
+                          return <>RM {(selectedLot.hourlyRate * hours).toFixed(2)} <span className="text-sm font-normal">({hours} hour{hours > 1 ? 's' : ''})</span></>;
+                        })()}
+                        {bookingType === 'daily' && (
+                          <>RM {selectedLot.dailyRate || (selectedLot.hourlyRate * 10)}/day</>
+                        )}
+                        {bookingType === 'monthly' && (
+                          <>RM {selectedLot.monthlyRate || (selectedLot.dailyRate * 20) || (selectedLot.hourlyRate * 200)}/month</>
+                        )}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Final price calculated at checkout</p>
@@ -467,7 +661,7 @@ export default function HomePage() {
                   </button>
                   <button 
                     onClick={handleConfirmBooking}
-                    disabled={bookingLoading || vehicles.length === 0 || !selectedDate}
+                    disabled={bookingLoading || vehicles.length === 0 || !selectedDate || (bookingType === 'hourly' && (!selectedTime || !endTime))}
                     className="flex-1 btn-primary"
                   >
                     {bookingLoading ? (
