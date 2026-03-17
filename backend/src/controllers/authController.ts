@@ -152,7 +152,7 @@ export const getProfile = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const user = await User.findById(req.user?.userId);
+    const user = await User.findById(req.user?.userId).select("-password");
     if (!user) {
       throw new AppError("User not found", 404, "USER_NOT_FOUND");
     }
@@ -173,12 +173,12 @@ export const updateProfile = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { firstName, lastName, phone, preferences } = req.body;
+    const { firstName, lastName, phone, preferences, company } = req.body;
     const userId = req.user?.userId;
 
     const user = await User.findByIdAndUpdate(
       userId,
-      { firstName, lastName, phone, preferences },
+      { firstName, lastName, phone, preferences, company },
       { new: true, runValidators: true },
     );
 
@@ -191,7 +191,7 @@ export const updateProfile = async (
       action: "update",
       entityType: "User",
       entityId: userId,
-      newValues: { firstName, lastName, phone, preferences },
+      newValues: { firstName, lastName, phone, preferences, company },
       ipAddress: req.ip,
       userAgent: req.get("User-Agent"),
     });

@@ -177,6 +177,59 @@ export default function MyBookingsPage() {
     return booking.status === 'pending' || booking.status === 'confirmed';
   };
 
+  const handleExportToCalendar = async (bookingId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/calendar/booking/${bookingId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `booking-${bookingId}.ics`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Calendar file downloaded');
+      } else {
+        toast.error('Failed to export calendar');
+      }
+    } catch (error) {
+      console.error('Error exporting calendar:', error);
+      toast.error('Failed to export calendar');
+    }
+  };
+
+  const handleExportAllToCalendar = async () => {
+    try {
+      const response = await fetch(`${API_URL}/calendar/my-bookings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'my-bookings.ics';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('All bookings exported to calendar');
+      } else {
+        const result = await response.json();
+        toast.error(result.message || 'Failed to export calendar');
+      }
+    } catch (error) {
+      console.error('Error exporting calendar:', error);
+      toast.error('Failed to export calendar');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -189,10 +242,20 @@ export default function MyBookingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
-        <button onClick={fetchBookings} className="btn-secondary flex items-center space-x-2">
-          <RefreshCw className="w-4 h-4" />
-          <span>Refresh</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleExportAllToCalendar} 
+            disabled={bookings.length === 0}
+            className="btn-secondary flex items-center space-x-2 disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export All</span>
+          </button>
+          <button onClick={fetchBookings} className="btn-secondary flex items-center space-x-2">
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       {bookings.length === 0 ? (
@@ -276,6 +339,14 @@ export default function MyBookingsPage() {
                   </div>
                   
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => handleExportToCalendar(booking._id)}
+                      className="btn-secondary text-sm py-1.5 flex items-center gap-1"
+                      title="Export to Calendar"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      ICS
+                    </button>
                     <button
                       onClick={() => setSelectedBooking(booking)}
                       className="btn-secondary text-sm py-1.5"

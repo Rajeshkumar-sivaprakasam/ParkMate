@@ -219,7 +219,7 @@ export default function AdminDashboard() {
   const fetchParkingLots = async () => {
     setLotsLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/parking/lots`, {
+      const response = await axios.get(`${API_URL}/parking/admin/lots`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.data.success) {
@@ -770,7 +770,7 @@ export default function AdminDashboard() {
                 onClick={() => { setEditingLot(null); setLotForm({
                   name: '', address: '', coordinates: { lat: 3.1427, lng: 101.7032 },
                   totalSpots: 50, hourlyRate: 5, dailyRate: 50, monthlyRate: 500,
-                  amenities: [], requireApproval: false, description: '',
+                  amenities: [], requireApproval: false, description: '', image: '',
                 }); setShowLotModal(true); }}
                 className="btn-primary flex items-center gap-2"
               >

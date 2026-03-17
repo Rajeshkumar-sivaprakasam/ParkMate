@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Search, MapPin, Clock, DollarSign, Zap, Car, Loader2, X, Calendar, Map, List } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, MapPin, Clock, DollarSign, Zap, Car, Loader2, X, Calendar, Map, List, Check, CreditCard, Smartphone, Building } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { toast } from 'sonner';
 
@@ -55,7 +55,13 @@ export default function HomePage() {
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank' | 'ewallet' | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+  const [paymentCountdown, setPaymentCountdown] = useState(5);
+  const [bookingData, setBookingData] = useState<any>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const countdownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetchParkingLots();
@@ -135,6 +141,8 @@ export default function HomePage() {
     setSelectedLot(null);
     setAvailableSlots([]);
     setSelectedSpot('');
+    setPaymentMethod(null);
+    setPaymentStatus('idle');
   };
 
   // Fetch available slots when date/time changes
@@ -170,6 +178,39 @@ export default function HomePage() {
       return;
     }
 
+    // Show payment options first
+    setPaymentMethod(null);
+    setPaymentStatus('idle');
+  };
+
+  const handleProcessPayment = async () => {
+    if (!paymentMethod) {
+      toast.error('Please select a payment method');
+      return;
+    }
+
+    setPaymentStatus('processing');
+    setPaymentCountdown(5);
+
+    // Start countdown
+    countdownRef.current = setInterval(() => {
+      setPaymentCountdown((prev) => {
+        if (prev <= 1) {
+          if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+          }
+          // Create the booking after countdown
+          createBooking();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const createBooking = async () => {
+    if (!token || !selectedLot || !selectedVehicle || !selectedDate) return;
+
     setBookingLoading(true);
     try {
       const response = await fetch(`${API_URL}/bookings`, {
@@ -192,16 +233,20 @@ export default function HomePage() {
       const result = await response.json();
       
       if (result.success) {
-        toast.success('Booking created successfully!');
+        setPaymentStatus('success');
+        setBookingData(result.data);
+        setShowSuccessModal(true);
         setShowBookingModal(false);
         clearBookingForm();
-        fetchParkingLots(); // Refresh availability
+        fetchParkingLots();
       } else {
         toast.error(result.message || 'Failed to create booking');
+        setPaymentStatus('idle');
       }
     } catch (error) {
       console.error('Error creating booking:', error);
       toast.error('Failed to create booking');
+      setPaymentStatus('idle');
     } finally {
       setBookingLoading(false);
     }
@@ -476,7 +521,7 @@ export default function HomePage() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Book Parking</h2>
-                <button onClick={() => { setShowBookingModal(false); clearBookingForm(); }} className="p-2 hover:bg-gray-100 rounded-lg">
+                <button onClick={() => { setShowBookingModal(false); clearBookingForm(); setPaymentMethod(null); setPaymentStatus('idle'); }} className="p-2 hover:bg-gray-100 rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -651,29 +696,169 @@ export default function HomePage() {
                   </div>
                 )}
 
+                {/* Payment Options */}
+                {paymentStatus === 'idle' && (
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Select Payment Method
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('card')}
+                        className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
+                          paymentMethod === 'card' 
+                            ? 'border-blue-600 bg-blue-50 text-blue-700' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <CreditCard className="w-6 h-6" />
+                        <span className="text-xs font-medium">Card</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('bank')}
+                        className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
+                          paymentMethod === 'bank' 
+                            ? 'border-blue-600 bg-blue-50 text-blue-700' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <Building className="w-6 h-6" />
+                        <span className="text-xs font-medium">Bank</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('ewallet')}
+                        className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
+                          paymentMethod === 'ewallet' 
+                            ? 'border-blue-600 bg-blue-50 text-blue-700' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <Smartphone className="w-6 h-6" />
+                        <span className="text-xs font-medium">E-Wallet</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Processing */}
+                {paymentStatus === 'processing' && (
+                  <div className="bg-blue-50 rounded-lg p-6 text-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Processing Payment</h3>
+                    <p className="text-gray-600 mb-4">Please wait while we process your payment...</p>
+                    <div className="text-4xl font-bold text-blue-600">
+                      {paymentCountdown}
+                    </div>
+                    <p className="text-sm text-gray-500 mt-2">seconds remaining</p>
+                  </div>
+                )}
+
                 {/* Actions */}
                 <div className="flex gap-3 pt-4">
                   <button 
-                    onClick={() => { setShowBookingModal(false); clearBookingForm(); }} 
+                    onClick={() => { setShowBookingModal(false); clearBookingForm(); setPaymentMethod(null); setPaymentStatus('idle'); }} 
                     className="flex-1 btn-secondary"
+                    disabled={paymentStatus === 'processing'}
                   >
                     Cancel
                   </button>
-                  <button 
-                    onClick={handleConfirmBooking}
-                    disabled={bookingLoading || vehicles.length === 0 || !selectedDate || (bookingType === 'hourly' && (!selectedTime || !endTime))}
-                    className="flex-1 btn-primary"
-                  >
-                    {bookingLoading ? (
-                      <span className="flex items-center justify-center">
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        Booking...
-                      </span>
-                    ) : (
-                      'Confirm Booking'
-                    )}
-                  </button>
+                  {paymentStatus === 'idle' ? (
+                    <button 
+                      onClick={handleProcessPayment}
+                      disabled={!paymentMethod || bookingLoading || vehicles.length === 0 || !selectedDate || (bookingType === 'hourly' && (!selectedTime || !endTime))}
+                      className="flex-1 btn-primary disabled:opacity-50"
+                    >
+                      Pay Now
+                    </button>
+                  ) : paymentStatus === 'processing' ? (
+                    <button 
+                      disabled
+                      className="flex-1 btn-primary opacity-50"
+                    >
+                      Processing...
+                    </button>
+                  ) : null}
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Success Modal */}
+      {showSuccessModal && bookingData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 text-center">
+              {/* Success Icon */}
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="w-10 h-10 text-green-600" />
+              </div>
+              
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
+              <p className="text-gray-600 mb-6">Your booking has been confirmed.</p>
+
+              {/* QR Code */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <p className="text-sm font-medium text-gray-700 mb-2">Scan QR Code to Enter</p>
+                <div className="w-32 h-32 bg-white border-2 border-gray-200 rounded-lg mx-auto flex items-center justify-center">
+                  {bookingData.qrCode ? (
+                    <img src={bookingData.qrCode} alt="QR Code" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="text-center p-2">
+                      <div className="grid grid-cols-5 gap-1 w-24 h-24 mx-auto">
+                        {[...Array(25)].map((_, i) => (
+                          <div key={i} className={`${Math.random() > 0.5 ? 'bg-black' : 'bg-white'} ${i % 5 === 0 ? 'border-l' : ''} ${Math.floor(i / 5) === 0 ? 'border-t' : ''} border border-gray-300`} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Passcode: {bookingData.passcode || 'N/A'}</p>
+              </div>
+
+              {/* Booking Details */}
+              <div className="bg-gray-50 rounded-lg p-4 text-left mb-6">
+                <h3 className="font-semibold text-gray-900 mb-2">Booking Details</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Location:</span>
+                    <span className="text-gray-900">{selectedLot?.name || bookingData.lotId?.name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Date:</span>
+                    <span className="text-gray-900">{bookingData.date ? new Date(bookingData.date).toLocaleDateString() : 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Time:</span>
+                    <span className="text-gray-900">{bookingData.startTime} - {bookingData.endTime}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Amount:</span>
+                    <span className="text-gray-900 font-semibold">RM {bookingData.totalAmount?.toFixed(2) || '0.00'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => { setShowSuccessModal(false); setBookingData(null); setSelectedLot(null); }} 
+                  className="flex-1 btn-secondary py-3"
+                >
+                  Close
+                </button>
+                <button 
+                  onClick={() => { window.location.href = '/bookings'; }} 
+                  className="flex-1 btn-primary py-3"
+                >
+                  View My Bookings
+                </button>
               </div>
             </div>
           </div>

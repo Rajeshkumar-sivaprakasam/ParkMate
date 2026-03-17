@@ -8,12 +8,20 @@ const router = Router();
 // Get all parking lots
 router.get("/lots", async (req, res, next) => {
   try {
-    const { lat, lng, radius = 5000 } = req.query;
+    const { lat, lng, radius = 5000, includeInactive } = req.query;
+
+    const query: Record<string, unknown> = {};
+
+    // Only filter by isActive if not explicitly requesting all
+    if (!includeInactive) {
+      query.isActive = true;
+    }
 
     let lots;
     if (lat && lng) {
       // Geo-spatial query
       lots = await ParkingLot.find({
+        ...query,
         location: {
           $near: {
             $geometry: {
@@ -26,10 +34,9 @@ router.get("/lots", async (req, res, next) => {
             $maxDistance: parseInt(radius as string, 10),
           },
         },
-        isActive: true,
       });
     } else {
-      lots = await ParkingLot.find({ isActive: true });
+      lots = await ParkingLot.find(query);
     }
 
     res.json({
@@ -41,6 +48,26 @@ router.get("/lots", async (req, res, next) => {
     next(error);
   }
 });
+
+// Admin: Get all parking lots (including inactive)
+router.get(
+  "/admin/lots",
+  authenticate,
+  authorize("admin", "superadmin"),
+  async (req, res, next) => {
+    try {
+      const lots = await ParkingLot.find().sort({ createdAt: -1 });
+
+      res.json({
+        success: true,
+        message: "All parking lots retrieved successfully",
+        data: lots,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 // Get parking lot by ID
 router.get("/lots/:id", async (req, res, next) => {
@@ -200,6 +227,68 @@ router.post(
         success: true,
         message: "Parking zone created successfully",
         data: zone,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Admin: Update parking lot (admin only)
+router.put(
+  "/lots/:id",
+  authenticate,
+  authorize("admin", "superadmin"),
+  async (req, res, next) => {
+    try {
+      const lot = await ParkingLot.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+
+      if (!lot) {
+        res.status(404).json({
+          success: false,
+          message: "Parking lot not found",
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        message: "Parking lot updated successfully",
+        data: lot,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Admin: Delete parking lot (admin only)
+router.delete(
+  "/lots/:id",
+  authenticate,
+  authorize("admin", "superadmin"),
+  async (req, res, next) => {
+    try {
+      const lot = await ParkingLot.findByIdAndUpdate(
+        req.params.id,
+        { isActive: false },
+        { new: true },
+      );
+
+      if (!lot) {
+        res.status(404).json({
+          success: false,
+          message: "Parking lot not found",
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        message: "Parking lot deleted successfully",
       });
     } catch (error) {
       next(error);
