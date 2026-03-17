@@ -9,7 +9,8 @@ import {
   Menu,
   X,
   Clock,
-  CarFront
+  CarFront,
+  Shield
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -23,7 +24,10 @@ export default function Layout() {
     { name: 'My Bookings', href: '/bookings', icon: Calendar },
     { name: 'Vehicles', href: '/vehicles', icon: CarFront },
     ...(user?.role === 'admin' || user?.role === 'superadmin'
-      ? [{ name: 'Admin', href: '/admin', icon: LayoutDashboard }]
+      ? [
+          { name: 'Admin', href: '/admin', icon: LayoutDashboard },
+          { name: 'Anomalies', href: '/admin/anomalies', icon: Shield }
+        ]
       : []),
     { name: 'Profile', href: '/profile', icon: User },
   ];

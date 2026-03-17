@@ -15,6 +15,9 @@ export interface IUserDocument extends Document {
   isEmailVerified: boolean;
   isActive: boolean;
   twoFactorEnabled: boolean;
+  failedLoginAttempts: number;
+  lockUntil?: Date;
+  lastFailedLogin?: Date;
   preferences: {
     notifications: {
       email: boolean;
@@ -88,6 +91,16 @@ const userSchema = new Schema<IUserDocument>(
     twoFactorEnabled: {
       type: Boolean,
       default: false,
+    },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+    },
+    lastFailedLogin: {
+      type: Date,
     },
     preferences: {
       notifications: {

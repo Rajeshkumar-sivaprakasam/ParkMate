@@ -7,3 +7,10 @@ export { Booking, IBookingDocument } from "./Booking.js";
 export { RefundPolicy, IRefundPolicyDocument } from "./RefundPolicy.js";
 export { AuditLog, IAuditLogDocument } from "./AuditLog.js";
 export { Organization, IOrganizationDocument } from "./Organization.js";
+export {
+  Anomaly,
+  IAnomalyDocument,
+  AnomalyType,
+  AnomalySeverity,
+  AnomalyStatus,
+} from "./Anomaly.js";

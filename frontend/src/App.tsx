@@ -9,6 +9,7 @@ import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
 import VehiclesPage from './pages/VehiclesPage';
 import CheckoutPage from './pages/CheckoutPage';
+import AnomalyDashboard from './pages/AnomalyDashboard';
 
 function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { isAuthenticated, user } = useAuthStore();
@@ -55,6 +56,11 @@ function App() {
         <Route path="/admin" element={
           <ProtectedRoute requireAdmin>
             <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/anomalies" element={
+          <ProtectedRoute requireAdmin>
+            <AnomalyDashboard />
           </ProtectedRoute>
         } />
       </Route>

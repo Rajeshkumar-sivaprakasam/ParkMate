@@ -105,8 +105,8 @@ router.post(
       .notEmpty()
       .withMessage("Current password is required"),
     body("newPassword")
-      .isLength({ min: 6 })
-      .withMessage("New password must be at least 6 characters"),
+      .isLength({ min: 8 })
+      .withMessage("New password must be at least 8 characters"),
   ],
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {

@@ -15,6 +15,7 @@ import type { AuthRequest } from "../middleware/auth.js";
 import { ringgitPayService } from "../services/ringgitpay.service.js";
 import { config } from "../config/index.js";
 import logger from "../utils/logger.js";
+import { anomalyService } from "../services/anomaly.service.js";
 
 const router = Router();
 
@@ -24,7 +25,7 @@ router.get("/", authenticate, async (req: AuthRequest, res, next) => {
     const { page = 1, limit = 10, status } = req.query;
     const userId = req.user?.userId;
 
-    const query: any = { userId };
+    const query: Record<string, unknown> = { userId };
     if (status) {
       query.status = status;
     }
@@ -301,6 +302,28 @@ router.post(
         ipAddress: req.ip,
         userAgent: req.get("User-Agent"),
       });
+
+      // Run anomaly detection (don't await - run in background)
+      Promise.all([
+        anomalyService.detectRapidBooking({
+          userId,
+          lotId,
+          vehicleId,
+          totalAmount,
+          date,
+          ipAddress: req.ip || undefined,
+          userAgent: req.get("User-Agent") || undefined,
+        }),
+        anomalyService.detectHighValueBooking({
+          userId,
+          lotId,
+          vehicleId,
+          totalAmount,
+          date,
+          ipAddress: req.ip || undefined,
+          userAgent: req.get("User-Agent") || undefined,
+        }),
+      ]).catch((err) => logger.error("Anomaly detection error:", err));
 
       res.status(201).json({
         success: true,

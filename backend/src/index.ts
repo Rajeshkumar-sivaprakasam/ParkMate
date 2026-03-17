@@ -4,6 +4,12 @@ import helmet from "helmet";
 import { config } from "./config/index.js";
 import { connectDB } from "./config/database.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
+import {
+  apiLimiter,
+  authLimiter,
+  paymentLimiter,
+  webhookLimiter,
+} from "./middleware/rateLimiter.js";
 
 // Routes
 import authRoutes from "./routes/auth.js";
@@ -18,6 +24,7 @@ import analyticsRoutes from "./routes/analytics.js";
 import invoiceRoutes from "./routes/invoice.js";
 import calendarRoutes from "./routes/calendar.js";
 import organizationRoutes from "./routes/organization.js";
+import anomalyRoutes from "./routes/anomaly.js";
 
 const app = express();
 
@@ -43,19 +50,20 @@ app.get("/health", (req, res) => {
   });
 });
 
-// API Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/parking", parkingRoutes);
-app.use("/api/parking-spots", parkingSpotRoutes);
-app.use("/api/bookings", bookingApprovalRoutes); // Must be before bookingRoutes
-app.use("/api/bookings", bookingRoutes);
-app.use("/api/vehicles", vehicleRoutes);
-app.use("/api/webhooks", webhookRoutes);
-app.use("/api/refund-policies", refundPolicyRoutes);
-app.use("/api/analytics", analyticsRoutes);
-app.use("/api/invoices", invoiceRoutes);
-app.use("/api/calendar", calendarRoutes);
-app.use("/api/organizations", organizationRoutes);
+// API Routes with rate limiting
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/parking", apiLimiter, parkingRoutes);
+app.use("/api/parking-spots", apiLimiter, parkingSpotRoutes);
+app.use("/api/bookings", apiLimiter, bookingApprovalRoutes); // Must be before bookingRoutes
+app.use("/api/bookings", apiLimiter, bookingRoutes);
+app.use("/api/vehicles", apiLimiter, vehicleRoutes);
+app.use("/api/webhooks", webhookLimiter, webhookRoutes);
+app.use("/api/refund-policies", apiLimiter, refundPolicyRoutes);
+app.use("/api/analytics", apiLimiter, analyticsRoutes);
+app.use("/api/invoices", paymentLimiter, invoiceRoutes);
+app.use("/api/calendar", apiLimiter, calendarRoutes);
+app.use("/api/organizations", apiLimiter, organizationRoutes);
+app.use("/api/anomalies", apiLimiter, anomalyRoutes);
 
 // Error handling
 app.use(notFoundHandler);

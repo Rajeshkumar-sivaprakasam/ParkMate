@@ -9,6 +9,7 @@ export interface IAuditLogDocument extends Document {
     | "update"
     | "delete"
     | "login"
+    | "login_failed"
     | "logout"
     | "book"
     | "cancel"
@@ -40,6 +41,7 @@ const auditLogSchema = new Schema<IAuditLogDocument>(
         "update",
         "delete",
         "login",
+        "login_failed",
         "logout",
         "book",
         "cancel",

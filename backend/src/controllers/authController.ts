@@ -4,6 +4,7 @@ import { config } from "../config/index.js";
 import { User, AuditLog } from "../models/index.js";
 import { AppError } from "../middleware/errorHandler.js";
 import type { AuthRequest } from "../middleware/auth.js";
+import { anomalyService } from "../services/anomaly.service.js";
 
 export const register = async (
   req: Request,
@@ -90,13 +91,73 @@ export const login = async (
       );
     }
 
+    // Check if account is locked
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      const lockTimeRemaining = Math.ceil(
+        (user.lockUntil.getTime() - Date.now()) / 1000 / 60,
+      );
+      throw new AppError(
+        `Account is locked. Try again in ${lockTimeRemaining} minutes`,
+        403,
+        "ACCOUNT_LOCKED",
+      );
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      // Increment failed login attempts
+      const newAttempts = (user.failedLoginAttempts || 0) + 1;
+      const MAX_ATTEMPTS = 5;
+      const LOCK_DURATION = 15 * 60 * 1000; // 15 minutes
+
+      let updateData: Record<string, unknown> = {
+        failedLoginAttempts: newAttempts,
+        lastFailedLogin: new Date(),
+      };
+
+      // Lock account after MAX_ATTEMPTS failed attempts
+      if (newAttempts >= MAX_ATTEMPTS) {
+        updateData.lockUntil = new Date(Date.now() + LOCK_DURATION);
+        updateData.failedLoginAttempts = 0; // Reset after locking
+      }
+
+      await User.findByIdAndUpdate(user._id, updateData);
+
+      // Create audit log for failed login
+      await AuditLog.create({
+        userId: user._id,
+        action: "login_failed",
+        entityType: "User",
+        entityId: user._id.toString(),
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+        metadata: { attempts: newAttempts },
+      });
+
+      // Detect anomaly pattern (run in background, don't await)
+      anomalyService
+        .detectFailedLoginPattern({
+          userId: user._id.toString(),
+          ipAddress: req.ip || undefined,
+          userAgent: req.get("User-Agent") || undefined,
+          success: false,
+        })
+        .catch(console.error);
+
       throw new AppError(
         "Invalid email or password",
         401,
         "INVALID_CREDENTIALS",
       );
+    }
+
+    // Reset failed login attempts on successful login
+    if (user.failedLoginAttempts > 0 || user.lockUntil) {
+      await User.findByIdAndUpdate(user._id, {
+        failedLoginAttempts: 0,
+        lockUntil: undefined,
+        lastFailedLogin: undefined,
+      });
     }
 
     if (!user.isActive) {
