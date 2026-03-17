@@ -1,6 +1,6 @@
 // ============================================
 // SHARED TYPES AND INTERFACES
-// Kilo Car Parking Management System
+// ParkMate Parking Management System
 // ============================================
 
 // ============================================

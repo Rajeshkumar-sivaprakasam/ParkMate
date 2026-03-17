@@ -39,7 +39,7 @@ export default function Layout() {
               <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
                 <Car className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">Kilo Car</span>
+              <span className="text-xl font-bold text-gray-900">ParkMate</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -160,7 +160,7 @@ export default function Layout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-gray-500">
-              © 2024 Kilo Car. All rights reserved.
+              © 2024 ParkMate. All rights reserved.
             </p>
             <div className="flex items-center space-x-4 mt-4 md:mt-0">
               <a href="#" className="text-sm text-gray-500 hover:text-gray-900">

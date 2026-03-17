@@ -1,10 +1,10 @@
-# 🚗 Kilo Car - Enterprise Parking Management System
+# 🚗 ParkMate - Enterprise Parking Management System
 
 A production-ready, full-stack parking management web application for corporate use.
 
 ## 📋 Overview
 
-Kilo Car is a comprehensive parking management system built with modern technologies:
+ParkMate is a comprehensive parking management system built with modern technologies:
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS
 - **Backend**: Node.js, Express, TypeScript

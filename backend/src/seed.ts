@@ -12,7 +12,6 @@ import {
   AuditLog,
 } from "./models/index.js";
 
-
 const seedData = async () => {
   try {
     console.log("Connecting to MongoDB...");
@@ -31,7 +30,7 @@ const seedData = async () => {
       Organization.deleteMany({}),
       User.deleteMany({}),
     ]);
-    
+
     // Explicitly drop parkinglots to clear stale indexes
     try {
       await mongoose.connection.db.dropCollection("parkinglots");
@@ -53,7 +52,7 @@ const seedData = async () => {
       lastName: "User",
       phone: "+60 12 345 6789",
       role: "admin",
-      company: "Kilo Car Parking Sdn Bhd",
+      company: "ParkMate Parking Sdn Bhd",
       department: "Operations",
       employeeId: "EMP001",
       isEmailVerified: true,
@@ -113,7 +112,7 @@ const seedData = async () => {
     console.log("Creating Organizations...");
     const organizations = await Organization.create([
       {
-        name: "Kilo Car Parking Sdn Bhd",
+        name: "ParkMate Parking Sdn Bhd",
         code: "KILOCAR",
         description: "Main parking management company",
         contactEmail: "admin@kilocar.com",
@@ -170,7 +169,6 @@ const seedData = async () => {
       },
     ]);
     console.log(`Created ${organizations.length} organizations\n`);
-
 
     // Create Parking Lots
     console.log("Creating Parking Lots...");

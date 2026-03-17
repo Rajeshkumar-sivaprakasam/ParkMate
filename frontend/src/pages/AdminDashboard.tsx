@@ -84,6 +84,7 @@ export default function AdminDashboard() {
     amenities: [] as string[],
     requireApproval: false,
     description: '',
+    image: '',
   });
 
   // Refund Policies State
@@ -247,7 +248,7 @@ export default function AdminDashboard() {
       setLotForm({
         name: '', address: '', coordinates: { lat: 3.1427, lng: 101.7032 },
         totalSpots: 50, hourlyRate: 5, dailyRate: 50, monthlyRate: 500,
-        amenities: [], requireApproval: false, description: '',
+        amenities: [], requireApproval: false, description: '', image: '',
       });
       fetchParkingLots();
     } catch (err: any) {
@@ -824,7 +825,7 @@ export default function AdminDashboard() {
                           totalSpots: lot.totalSpots, hourlyRate: lot.hourlyRate,
                           dailyRate: lot.dailyRate, monthlyRate: lot.monthlyRate,
                           amenities: lot.amenities || [], requireApproval: lot.requireApproval || false,
-                          description: lot.description || '',
+                          description: lot.description || '', image: lot.image || lot.images?.[0] || '',
                         }); setShowLotModal(true); }}
                         className="flex-1 text-sm text-primary-600 hover:text-primary-700 flex items-center justify-center gap-1"
                       >
@@ -955,6 +956,17 @@ export default function AdminDashboard() {
                     rows={3}
                     placeholder="Optional description..."
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                  <input
+                    type="url"
+                    value={lotForm.image}
+                    onChange={(e) => setLotForm({ ...lotForm, image: e.target.value })}
+                    className="input"
+                    placeholder="https://example.com/image.jpg"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Enter a URL for the parking lot image</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
@@ -1285,7 +1297,7 @@ export default function AdminDashboard() {
                       value={orgForm.name}
                       onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
                       className="input"
-                      placeholder="e.g., Kilo Car Parking"
+                      placeholder="e.g., ParkMate Parking"
                     />
                   </div>
                   <div>

@@ -1,8 +1,8 @@
-# 🚗 Kilo Car - Corporate Parking Management System
+# 🚗 ParkMate - Corporate Parking Management System
 
 ## Full Walkthrough Guide
 
-Welcome to **Kilo Car**, a comprehensive corporate parking management system built with React, Node.js, Express, and MongoDB.
+Welcome to **ParkMate**, a comprehensive corporate parking management system built with React, Node.js, Express, and MongoDB.
 
 ---
 

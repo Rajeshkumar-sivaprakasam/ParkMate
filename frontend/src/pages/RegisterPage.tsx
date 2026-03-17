@@ -67,7 +67,7 @@ export default function RegisterPage() {
             <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center">
               <Car className="w-7 h-7 text-white" />
             </div>
-            <span className="text-2xl font-bold text-gray-900">Kilo Car</span>
+            <span className="text-2xl font-bold text-gray-900">ParkMate</span>
           </Link>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">Create an account</h2>
           <p className="mt-2 text-sm text-gray-600">

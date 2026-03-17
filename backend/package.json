@@ -1,7 +1,7 @@
 {
   "name": "@kilo-car/backend",
   "version": "1.0.0",
-  "description": "Backend API for Kilo Car Parking Management",
+  "description": "Backend API for ParkMate Parking Management",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

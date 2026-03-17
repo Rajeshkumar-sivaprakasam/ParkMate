@@ -176,7 +176,7 @@ class InvoiceService {
 <body>
   <div class="header">
     <div class="company-info">
-      <h1>🅿️ Kilo Car</h1>
+      <h1>🅿️ ParkMate</h1>
       <p>Parking Management System</p>
     </div>
     <div class="invoice-info">
@@ -248,7 +248,7 @@ class InvoiceService {
   </div>
 
   <div class="footer">
-    <p>Thank you for using Kilo Car Parking!</p>
+    <p>Thank you for using ParkMate Parking!</p>
     <p>This is a computer-generated invoice. No signature required.</p>
   </div>
 </body>

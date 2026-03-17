@@ -42,7 +42,7 @@ class EmailService {
   private async sendEmail(options: EmailOptions): Promise<boolean> {
     try {
       await this.transporter.sendMail({
-        from: `"Kilo Car Parking" <${this.fromEmail}>`,
+        from: `"ParkMate Parking" <${this.fromEmail}>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
@@ -152,7 +152,7 @@ class EmailService {
               </p>
             </div>
             <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-              <p>© ${new Date().getFullYear()} Kilo Car Parking. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} ParkMate Parking. All rights reserved.</p>
               <p>This is an automated message, please do not reply directly.</p>
             </div>
           </body>
@@ -178,9 +178,9 @@ ${d.passcode ? `Entry Passcode: ${d.passcode}` : ""}
 
 Please arrive at least 10 minutes before your booking time.
 
-Thank you for choosing Kilo Car Parking!
+Thank you for choosing ParkMate Parking!
 
-© ${new Date().getFullYear()} Kilo Car Parking
+© ${new Date().getFullYear()} ParkMate Parking
         `,
       },
 
@@ -269,11 +269,11 @@ Thank you for choosing Kilo Car Parking!
               }
 
               <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                Thank you for using Kilo Car Parking. We hope to serve you again soon!
+                Thank you for using ParkMate Parking. We hope to serve you again soon!
               </p>
             </div>
             <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-              <p>© ${new Date().getFullYear()} Kilo Car Parking. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} ParkMate Parking. All rights reserved.</p>
             </div>
           </body>
           </html>
@@ -295,9 +295,9 @@ ${d.refundAmount > 0 ? `Refund Amount: ${d.currency} ${d.refundAmount.toFixed(2)
 
 ${d.cancellationReason ? `Reason: ${d.cancellationReason}` : ""}
 
-Thank you for using Kilo Car Parking!
+Thank you for using ParkMate Parking!
 
-© ${new Date().getFullYear()} Kilo Car Parking
+© ${new Date().getFullYear()} ParkMate Parking
         `,
       },
 
@@ -356,7 +356,7 @@ Thank you for using Kilo Car Parking!
               </p>
             </div>
             <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-              <p>© ${new Date().getFullYear()} Kilo Car Parking. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} ParkMate Parking. All rights reserved.</p>
             </div>
           </body>
           </html>
@@ -379,7 +379,7 @@ The refund should appear in your account within 5-7 business days.
 
 Thank you!
 
-© ${new Date().getFullYear()} Kilo Car Parking
+© ${new Date().getFullYear()} ParkMate Parking
         `,
       },
 
@@ -425,7 +425,7 @@ Thank you!
               </div>
             </div>
             <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-              <p>© ${new Date().getFullYear()} Kilo Car Parking. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} ParkMate Parking. All rights reserved.</p>
             </div>
           </body>
           </html>
@@ -443,7 +443,7 @@ Error: ${d.errorMessage || "Unknown error"}
 
 Please contact our support team for assistance.
 
-© ${new Date().getFullYear()} Kilo Car Parking
+© ${new Date().getFullYear()} ParkMate Parking
         `,
       },
 
@@ -497,7 +497,7 @@ Please contact our support team for assistance.
               </p>
             </div>
             <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-              <p>© ${new Date().getFullYear()} Kilo Car Parking. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} ParkMate Parking. All rights reserved.</p>
             </div>
           </body>
           </html>
@@ -519,7 +519,7 @@ Please arrive 5-10 minutes before your scheduled time.
 
 See you soon!
 
-© ${new Date().getFullYear()} Kilo Car Parking
+© ${new Date().getFullYear()} ParkMate Parking
         `,
       },
 
@@ -591,8 +591,8 @@ See you soon!
               </p>
             </div>
             <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-              <p>Kilo Car Parking Admin System</p>
-              <p>© ${new Date().getFullYear()} Kilo Car Parking</p>
+              <p>ParkMate Parking Admin System</p>
+              <p>© ${new Date().getFullYear()} ParkMate Parking</p>
             </div>
           </body>
           </html>
@@ -613,7 +613,7 @@ ${d.cancellationReason ? `- Reason: ${d.cancellationReason}` : ""}
 
 View in Admin Dashboard: ${d.adminDashboardUrl || "#"}
 
-© ${new Date().getFullYear()} Kilo Car Parking
+© ${new Date().getFullYear()} ParkMate Parking
         `,
       },
 
@@ -673,8 +673,8 @@ View in Admin Dashboard: ${d.adminDashboardUrl || "#"}
               </p>
             </div>
             <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-              <p>Kilo Car Parking Admin System</p>
-              <p>© ${new Date().getFullYear()} Kilo Car Parking</p>
+              <p>ParkMate Parking Admin System</p>
+              <p>© ${new Date().getFullYear()} ParkMate Parking</p>
             </div>
           </body>
           </html>
@@ -695,7 +695,7 @@ Booking Details:
 
 View in Admin Dashboard: ${d.adminDashboardUrl || "#"}
 
-© ${new Date().getFullYear()} Kilo Car Parking
+© ${new Date().getFullYear()} ParkMate Parking
         `,
       },
 
@@ -711,7 +711,7 @@ View in Admin Dashboard: ${d.adminDashboardUrl || "#"}
           <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
               <h1 style="color: white; margin: 0; font-size: 28px;">🔐 Password Reset</h1>
-              <p style="color: #bfdbfe; margin: 10px 0 0;">Reset your Kilo Car password</p>
+              <p style="color: #bfdbfe; margin: 10px 0 0;">Reset your ParkMate password</p>
             </div>
             <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
               <p style="margin-top: 0;">Dear <strong>${d.userName || "Customer"}</strong>,</p>
@@ -737,7 +737,7 @@ View in Admin Dashboard: ${d.adminDashboardUrl || "#"}
               </p>
             </div>
             <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-              <p>© ${new Date().getFullYear()} Kilo Car Parking. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} ParkMate Parking. All rights reserved.</p>
             </div>
           </body>
           </html>
@@ -756,7 +756,7 @@ This link will expire in 1 hour.
 
 If you didn't request a password reset, please ignore this email.
 
-© ${new Date().getFullYear()} Kilo Car Parking
+© ${new Date().getFullYear()} ParkMate Parking
         `,
       },
 
@@ -772,7 +772,7 @@ If you didn't request a password reset, please ignore this email.
           <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
               <h1 style="color: white; margin: 0; font-size: 28px;">📧 Email Verification</h1>
-              <p style="color: #bfdbfe; margin: 10px 0 0;">Verify your Kilo Car account</p>
+              <p style="color: #bfdbfe; margin: 10px 0 0;">Verify your ParkMate account</p>
             </div>
             <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
               <p style="margin-top: 0;">Dear <strong>${d.userName || "Customer"}</strong>,</p>
@@ -793,7 +793,7 @@ If you didn't request a password reset, please ignore this email.
               </div>
             </div>
             <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-              <p>© ${new Date().getFullYear()} Kilo Car Parking. All rights reserved.</p>
+              <p>© ${new Date().getFullYear()} ParkMate Parking. All rights reserved.</p>
             </div>
           </body>
           </html>
@@ -812,7 +812,7 @@ This verification link will expire in 24 hours.
 
 If you didn't create an account, please ignore this email.
 
-© ${new Date().getFullYear()} Kilo Car Parking
+© ${new Date().getFullYear()} ParkMate Parking
         `,
       },
     };
