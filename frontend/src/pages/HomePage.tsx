@@ -178,34 +178,13 @@ export default function HomePage() {
       return;
     }
 
-    // Show payment options first
-    setPaymentMethod(null);
-    setPaymentStatus('idle');
+    // Create booking and redirect to payment immediately
+    createBooking();
   };
 
   const handleProcessPayment = async () => {
-    if (!paymentMethod) {
-      toast.error('Please select a payment method');
-      return;
-    }
-
-    setPaymentStatus('processing');
-    setPaymentCountdown(5);
-
-    // Start countdown
-    countdownRef.current = setInterval(() => {
-      setPaymentCountdown((prev) => {
-        if (prev <= 1) {
-          if (countdownRef.current) {
-            clearInterval(countdownRef.current);
-          }
-          // Create the booking after countdown
-          createBooking();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    // Skip payment method selection - go directly to RiggitPay
+    createBooking();
   };
 
   const createBooking = async () => {
@@ -233,12 +212,43 @@ export default function HomePage() {
       const result = await response.json();
       
       if (result.success) {
-        setPaymentStatus('success');
-        setBookingData(result.data);
-        setShowSuccessModal(true);
-        setShowBookingModal(false);
-        clearBookingForm();
-        fetchParkingLots();
+        const booking = result.data;
+        
+        // Initiate payment after booking is created
+        try {
+          const paymentResponse = await fetch(`${API_URL}/bookings/${booking._id}/pay`, {
+            method: 'POST',
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          const paymentResult = await paymentResponse.json();
+          
+          if (paymentResult.success) {
+            // Navigate to checkout page with booking ID
+            const checkoutUrl = `${window.location.origin}/checkout?bookingId=${booking._id}&amount=${booking.totalAmount}`;
+            window.location.href = checkoutUrl;
+          } else {
+            // If payment initiation fails, still show success
+            setPaymentStatus('success');
+            setBookingData(booking);
+            setShowSuccessModal(true);
+            setShowBookingModal(false);
+            clearBookingForm();
+            fetchParkingLots();
+          }
+        } catch (paymentError) {
+          console.error('Payment initiation error:', paymentError);
+          // Show booking success even if payment fails
+          setPaymentStatus('success');
+          setBookingData(booking);
+          setShowSuccessModal(true);
+          setShowBookingModal(false);
+          clearBookingForm();
+          fetchParkingLots();
+        }
       } else {
         toast.error(result.message || 'Failed to create booking');
         setPaymentStatus('idle');
@@ -696,68 +706,6 @@ export default function HomePage() {
                   </div>
                 )}
 
-                {/* Payment Options */}
-                {paymentStatus === 'idle' && (
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Select Payment Method
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('card')}
-                        className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
-                          paymentMethod === 'card' 
-                            ? 'border-blue-600 bg-blue-50 text-blue-700' 
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <CreditCard className="w-6 h-6" />
-                        <span className="text-xs font-medium">Card</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('bank')}
-                        className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
-                          paymentMethod === 'bank' 
-                            ? 'border-blue-600 bg-blue-50 text-blue-700' 
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <Building className="w-6 h-6" />
-                        <span className="text-xs font-medium">Bank</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('ewallet')}
-                        className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
-                          paymentMethod === 'ewallet' 
-                            ? 'border-blue-600 bg-blue-50 text-blue-700' 
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <Smartphone className="w-6 h-6" />
-                        <span className="text-xs font-medium">E-Wallet</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Payment Processing */}
-                {paymentStatus === 'processing' && (
-                  <div className="bg-blue-50 rounded-lg p-6 text-center">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Processing Payment</h3>
-                    <p className="text-gray-600 mb-4">Please wait while we process your payment...</p>
-                    <div className="text-4xl font-bold text-blue-600">
-                      {paymentCountdown}
-                    </div>
-                    <p className="text-sm text-gray-500 mt-2">seconds remaining</p>
-                  </div>
-                )}
-
                 {/* Actions */}
                 <div className="flex gap-3 pt-4">
                   <button 
@@ -770,7 +718,7 @@ export default function HomePage() {
                   {paymentStatus === 'idle' ? (
                     <button 
                       onClick={handleProcessPayment}
-                      disabled={!paymentMethod || bookingLoading || vehicles.length === 0 || !selectedDate || (bookingType === 'hourly' && (!selectedTime || !endTime))}
+                      disabled={bookingLoading || vehicles.length === 0 || !selectedDate || (bookingType === 'hourly' && (!selectedTime || !endTime))}
                       className="flex-1 btn-primary disabled:opacity-50"
                     >
                       Pay Now

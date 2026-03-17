@@ -3,9 +3,18 @@ import { body } from "express-validator";
 import QRCode from "qrcode";
 import { v4 as uuidv4 } from "uuid";
 import { authenticate, authorize } from "../middleware/auth.js";
-import { Booking, ParkingLot, Vehicle, RefundPolicy } from "../models/index.js";
+import {
+  Booking,
+  ParkingLot,
+  Vehicle,
+  RefundPolicy,
+  User,
+} from "../models/index.js";
 import { AppError } from "../middleware/errorHandler.js";
 import type { AuthRequest } from "../middleware/auth.js";
+import { ringgitPayService } from "../services/ringgitpay.service.js";
+import { config } from "../config/index.js";
+import logger from "../utils/logger.js";
 
 const router = Router();
 
@@ -278,7 +287,7 @@ router.post(
         duration,
         totalAmount,
         currency: lot.currency || "MYR",
-        paymentStatus: "completed", // Mock - in production would integrate with payment gateway
+        paymentStatus: "pending", // Payment will be initiated after booking
         qrCode,
         passcode,
         qrCodeGeneratedAt: new Date(),
@@ -408,17 +417,13 @@ router.post(
         // Initiate RinggitPay refund (if payment was made)
         if (booking.transactionId) {
           try {
-            const { RinggitPayService } =
+            const { ringgitPayService: ringgitPay } =
               await import("../services/ringgitpay.service.js");
-            const ringgitPay = new RinggitPayService();
-            const refundResult = await ringgitPay.initiateRefund({
-              transactionId: booking.transactionId,
+            const refundResult = await ringgitPay.processRefund({
+              paymentId: booking.transactionId,
               amount: refundAmount,
               reason: reason || "Customer cancellation",
-              metadata: {
-                bookingId: booking._id.toString(),
-                userId: userId?.toString(),
-              },
+              orderId: booking._id.toString(),
             });
             booking.refundId = refundResult.refundId;
           } catch (refundError) {
@@ -563,5 +568,146 @@ router.post(
     }
   },
 );
+
+// Initiate payment for a booking
+router.post("/:id/pay", authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const booking = await Booking.findOne({
+      _id: req.params.id,
+      userId: req.user?.userId,
+    }).populate("lotId vehicleId");
+
+    if (!booking) {
+      throw new AppError("Booking not found", 404, "BOOKING_NOT_FOUND");
+    }
+
+    // Check if already paid
+    if (booking.paymentStatus === "completed") {
+      return res.json({
+        success: true,
+        message: "Booking is already paid",
+        data: {
+          bookingId: booking._id,
+          paymentStatus: booking.paymentStatus,
+          checkoutUrl: null,
+        },
+      });
+    }
+
+    // Get user details for payment
+    const user = await User.findById(req.user?.userId);
+    if (!user) {
+      throw new AppError("User not found", 404, "USER_NOT_FOUND");
+    }
+
+    // Create payment via RinggitPay
+    const frontendUrl = config.frontendUrl;
+    const paymentResult = await ringgitPayService.createPayment({
+      amount: Number(booking.totalAmount),
+      currency: booking.currency || "MYR",
+      orderId: booking._id.toString(),
+      customerName: `${user.firstName} ${user.lastName}`,
+      customerEmail: user.email,
+      customerPhone: user.phone || "",
+      description: `Parking booking at ${(booking.lotId as any)?.name || "Parking Lot"}`,
+      callbackUrl: `${config.port ? `https://parkatwill.base44.app` : frontendUrl}/api/webhooks/ringgitpay`,
+      redirectUrl: `${frontendUrl}/checkout?bookingId=${booking._id}`,
+    });
+
+    if (!paymentResult.success) {
+      throw new AppError(
+        paymentResult.message || "Failed to create payment",
+        500,
+        "PAYMENT_FAILED",
+      );
+    }
+
+    // Update booking with payment ID and transaction ID
+    booking.paymentId = paymentResult.paymentId;
+    booking.transactionId = paymentResult.paymentId;
+    booking.paymentStatus = "pending";
+    await booking.save();
+
+    res.json({
+      success: true,
+      message: "Payment initiated successfully",
+      data: {
+        bookingId: booking._id,
+        paymentId: paymentResult.paymentId,
+        checkoutUrl: paymentResult.checkoutUrl,
+        paymentFormHtml: paymentResult.paymentFormHtml,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Payment redirect/callback handler (for after payment completion)
+router.get(
+  "/:id/payment-status",
+  authenticate,
+  async (req: AuthRequest, res, next) => {
+    try {
+      const booking = await Booking.findOne({
+        _id: req.params.id,
+        userId: req.user?.userId,
+      });
+
+      if (!booking) {
+        throw new AppError("Booking not found", 404, "BOOKING_NOT_FOUND");
+      }
+
+      // For payment status, we just return the current booking status
+      // The webhook will update it when payment is confirmed
+
+      res.json({
+        success: true,
+        data: {
+          bookingId: booking._id,
+          paymentStatus: booking.paymentStatus,
+          paymentId: booking.paymentId,
+          transactionId: booking.transactionId,
+          totalAmount: booking.totalAmount,
+          currency: booking.currency,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Handle payment redirect response from RinggitPay (POST)
+router.post("/payment-response", async (req: AuthRequest, res, next) => {
+  try {
+    const payload = req.body;
+    logger.info("Payment response received:", payload);
+
+    // Parse the response from RinggitPay
+    const result = ringgitPayService.parseRedirectResponse(payload);
+
+    // Update booking status
+    const booking = await Booking.findOne({ _id: result.orderId });
+    if (booking) {
+      if (result.status === "completed") {
+        booking.paymentStatus = "completed";
+        booking.transactionId = payload.rp_transactionId || "";
+      } else if (result.status === "failed") {
+        booking.paymentStatus = "failed";
+      }
+      await booking.save();
+    }
+
+    // Redirect back to frontend checkout page with status
+    const frontendUrl = config.frontendUrl;
+    res.redirect(
+      `${frontendUrl}/checkout?bookingId=${result.orderId}&status=${result.status}`,
+    );
+  } catch (error) {
+    logger.error("Payment response error:", error);
+    next(error);
+  }
+});
 
 export default router;

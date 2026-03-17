@@ -1,11 +1,11 @@
 import crypto from "crypto";
 import { config } from "../config/index.js";
 import { Booking, User } from "../models/index.js";
-import { AppError } from "../middleware/errorHandler.js";
-import logger from "../utils/logger.js";
 import { emailService } from "./email.service.js";
+import logger from "../utils/logger.js";
 
-// RinggitPay API types
+// RinggitPay uses form POST redirects - not REST API
+
 export interface RinggitPayPaymentRequest {
   amount: number;
   currency: string;
@@ -22,7 +22,7 @@ export interface RinggitPayPaymentResponse {
   success: boolean;
   paymentId?: string;
   checkoutUrl?: string;
-  qrCode?: string;
+  paymentFormHtml?: string;
   message?: string;
 }
 
@@ -41,91 +41,143 @@ export interface RinggitPayRefundResponse {
 }
 
 export interface RinggitPayWebhookPayload {
-  event: string;
-  paymentId: string;
-  orderId: string;
-  status: "success" | "failed" | "pending" | "cancelled";
-  amount: number;
-  currency: string;
-  transactionId?: string;
-  signature: string;
-  timestamp: string;
-  metadata?: Record<string, unknown>;
+  rp_appId: string;
+  rp_amount: string;
+  rp_statusCode: string;
+  rp_orderId: string;
+  rp_paymentMode: string;
+  rp_transactionId?: string;
+  rp_signature: string;
 }
 
-// Refund status mapping
-const RefundStatusMap: Record<
-  string,
-  "none" | "pending" | "processing" | "completed" | "failed"
-> = {
-  pending: "pending",
-  processing: "processing",
-  completed: "completed",
-  failed: "failed",
+// Status code mapping
+const StatusCodeMap: Record<string, "completed" | "pending" | "failed"> = {
+  RP00: "completed", // Success
+  RP09: "pending", // Pending
+  RP01: "failed", // Failed
 };
 
 class RinggitPayService {
   private readonly apiUrl: string;
-  private readonly apiKey: string;
-  private readonly apiSecret: string;
-  private readonly webhookSecret: string;
+  private readonly appId: string;
+  private readonly requestKey: string;
+  private readonly responseKey: string;
 
   constructor() {
-    this.apiUrl = config.ringgitpay.apiUrl;
-    this.apiKey = config.ringgitpay.apiKey;
-    this.apiSecret = config.ringgitpay.apiSecret;
-    this.webhookSecret = config.ringgitpay.webhookSecret;
-    logger.info("RinggitPay service initialized");
+    // Use UAT or PROD based on environment
+    const isProduction = process.env.NODE_ENV === "production";
+    this.apiUrl = isProduction
+      ? "https://ringgitpay.com/payment"
+      : "https://ringgitpay.co/payment";
+
+    // Parse API key format: AppId:RequestKey
+    const apiKeyFull = config.ringgitpay.apiKey;
+    const parts = apiKeyFull.split(":");
+    this.appId = parts[0] || "RPA-PARTAT-859";
+    this.requestKey =
+      parts[1] || config.ringgitpay.apiSecret || "1XBY04XKW RPLIZU2V0MG";
+    this.responseKey =
+      config.ringgitpay.webhookSecret || "1XBY04XKW RPLIZU2V0MG";
+
+    logger.info("RinggitPay service initialized", {
+      apiUrl: this.apiUrl,
+      appId: this.appId,
+      mode: isProduction ? "PRODUCTION" : "UAT",
+    });
   }
 
   /**
-   * Generate HMAC signature for webhook validation
+   * Generate checksum for payment request
+   * Format: appId|currency|amount|orderId|REQUESTKEY -> SHA256 -> UPPERCASE
    */
-  private generateSignature(payload: string): string {
-    return crypto
-      .createHmac("sha256", this.apiSecret)
-      .update(payload)
-      .digest("hex");
+  private generateChecksum(
+    appId: string,
+    currency: string,
+    amount: number,
+    orderId: string,
+  ): string {
+    const data = `${appId}|${currency}|${amount.toFixed(2)}|${orderId}|${this.requestKey}`;
+    return crypto.createHash("sha256").update(data).digest("hex").toUpperCase();
   }
 
   /**
-   * Verify webhook signature
+   * Verify response checksum
    */
-  verifyWebhookSignature(payload: string, signature: string): boolean {
-    const expectedSignature = this.generateSignature(payload);
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature),
-    );
+  verifyResponseSignature(payload: string): boolean {
+    try {
+      // Parse the payload and verify signature
+      const params = new URLSearchParams(payload);
+      const signature = params.get("rp_signature") || "";
+
+      // Build data string for verification
+      const appId = params.get("rp_appId") || "";
+      const amount = params.get("rp_amount") || "0";
+      const statusCode = params.get("rp_statusCode") || "";
+      const orderId = params.get("rp_orderId") || "";
+
+      const data = `${appId}|MYR|${amount}|${orderId}|${this.responseKey}`;
+      const expectedSignature = crypto
+        .createHash("sha256")
+        .update(data)
+        .digest("hex")
+        .toUpperCase();
+
+      return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature),
+      );
+    } catch (error) {
+      logger.error("Response signature verification error:", error);
+      return false;
+    }
   }
 
   /**
-   * Create payment link
+   * Create payment - generates form post redirect to RinggitPay
    */
   async createPayment(
     request: RinggitPayPaymentRequest,
   ): Promise<RinggitPayPaymentResponse> {
     try {
-      const timestamp = new Date().toISOString();
-      const payload = JSON.stringify({
-        ...request,
-        timestamp,
+      logger.info(`Creating payment for order: ${request.orderId}`, {
+        amount: request.amount,
+        currency: request.currency,
       });
 
-      const signature = this.generateSignature(payload);
+      // Generate checksum
+      const checkSum = this.generateChecksum(
+        this.appId,
+        request.currency,
+        request.amount,
+        request.orderId,
+      );
 
-      // In production, make actual API call to RinggitPay
-      // For now, simulate the response
-      logger.info(`Creating payment for order: ${request.orderId}`);
+      // Build payment form - RinggitPay uses form POST redirect
+      // The frontend will redirect to this URL with POST data
+      const checkoutUrl = this.apiUrl;
 
-      // Mock response - in production, replace with actual API call
-      const mockPaymentId = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // Generate hidden form HTML that auto-submits
+      const paymentFormHtml = this.generatePaymentForm({
+        appId: this.appId,
+        currency: request.currency,
+        amount: request.amount.toFixed(2),
+        orderId: request.orderId,
+        checkSum: checkSum,
+        customerName: request.customerName,
+        customerEmail: request.customerEmail,
+        customerPhone: request.customerPhone || "",
+        description: request.description || "",
+        redirectUrl: request.redirectUrl,
+        callbackUrl: request.callbackUrl,
+      });
+
+      logger.info(`Payment form generated for order: ${request.orderId}`);
 
       return {
         success: true,
-        paymentId: mockPaymentId,
-        checkoutUrl: `${this.apiUrl}/checkout/${mockPaymentId}`,
-        qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(mockPaymentId)}`,
+        paymentId: request.orderId,
+        checkoutUrl: checkoutUrl,
+        paymentFormHtml: paymentFormHtml,
       };
     } catch (error) {
       logger.error("Failed to create payment:", error);
@@ -137,36 +189,61 @@ class RinggitPayService {
   }
 
   /**
+   * Generate payment form HTML for auto-submit
+   */
+  private generatePaymentForm(params: {
+    appId: string;
+    currency: string;
+    amount: string;
+    orderId: string;
+    checkSum: string;
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+    description: string;
+    redirectUrl: string;
+    callbackUrl: string;
+  }): string {
+    return `
+<form id="ringgitpay-form" method="POST" action="${this.apiUrl}">
+  <input type="hidden" name="appId" value="${params.appId}">
+  <input type="hidden" name="currency" value="${params.currency}">
+  <input type="hidden" name="amount" value="${params.amount}">
+  <input type="hidden" name="orderId" value="${params.orderId}">
+  <input type="hidden" name="checkSum" value="${params.checkSum}">
+  <input type="hidden" name="customerName" value="${params.customerName}">
+  <input type="hidden" name="customerEmail" value="${params.customerEmail}">
+  <input type="hidden" name="customerPhone" value="${params.customerPhone}">
+  <input type="hidden" name="description" value="${params.description}">
+  <input type="hidden" name="redirectUrl" value="${params.redirectUrl}">
+  <input type="hidden" name="callbackUrl" value="${params.callbackUrl}">
+</form>
+<script>document.getElementById('ringgitpay-form').submit();</script>
+    `.trim();
+  }
+
+  /**
    * Process refund
    */
   async processRefund(
     request: RinggitPayRefundRequest,
   ): Promise<RinggitPayRefundResponse> {
     try {
-      const timestamp = new Date().toISOString();
-      const payload = JSON.stringify({
-        ...request,
-        timestamp,
-      });
-
       logger.info(
         `Processing refund for order: ${request.orderId}, amount: ${request.amount}`,
       );
 
-      // Mock response - in production, replace with actual API call
-      const mockRefundId = `REF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
       // Update booking with refund info
       const booking = await Booking.findOne({ transactionId: request.orderId });
       if (booking) {
-        booking.refundId = mockRefundId;
+        booking.refundId = `REF-${Date.now()}`;
         booking.refundStatus = "processing";
         await booking.save();
       }
 
       return {
         success: true,
-        refundId: mockRefundId,
+        refundId: `REF-${Date.now()}`,
         status: "processing",
       };
     } catch (error) {
@@ -179,29 +256,31 @@ class RinggitPayService {
   }
 
   /**
-   * Handle webhook events
+   * Handle webhook/callback from RinggitPay
    */
-  async handleWebhook(payload: RinggitPayWebhookPayload): Promise<boolean> {
+  async handleWebhook(payload: Record<string, string>): Promise<boolean> {
     try {
+      const orderId = payload.rp_orderId;
+      const statusCode = payload.rp_statusCode;
+      const transactionId = payload.rp_transactionId || "";
+
       logger.info(
-        `Processing webhook event: ${payload.event}, order: ${payload.orderId}`,
+        `Processing webhook for order: ${orderId}, status: ${statusCode}`,
       );
 
-      switch (payload.event) {
-        case "payment.success":
-          await this.handlePaymentSuccess(payload);
+      // Map status code
+      const paymentStatus = StatusCodeMap[statusCode] || "pending";
+
+      switch (paymentStatus) {
+        case "completed":
+          await this.handlePaymentSuccess(orderId, transactionId, payload);
           break;
-        case "payment.failed":
-          await this.handlePaymentFailed(payload);
+        case "pending":
+          await this.handlePaymentPending(orderId, payload);
           break;
-        case "refund.success":
-          await this.handleRefundSuccess(payload);
+        case "failed":
+          await this.handlePaymentFailed(orderId, payload);
           break;
-        case "refund.failed":
-          await this.handleRefundFailed(payload);
-          break;
-        default:
-          logger.warn(`Unhandled webhook event: ${payload.event}`);
       }
 
       return true;
@@ -215,18 +294,20 @@ class RinggitPayService {
    * Handle successful payment
    */
   private async handlePaymentSuccess(
-    payload: RinggitPayWebhookPayload,
+    orderId: string,
+    transactionId: string,
+    payload: Record<string, string>,
   ): Promise<void> {
-    const booking = await Booking.findOne({ transactionId: payload.orderId });
+    const booking = await Booking.findOne({ _id: orderId });
 
     if (!booking) {
-      logger.warn(`Booking not found for order: ${payload.orderId}`);
+      logger.warn(`Booking not found for order: ${orderId}`);
       return;
     }
 
     booking.paymentStatus = "completed";
-    booking.paymentId = payload.paymentId;
-    booking.transactionId = payload.transactionId || payload.paymentId;
+    booking.paymentId = transactionId;
+    booking.transactionId = transactionId;
     await booking.save();
 
     logger.info(`Payment confirmed for booking: ${booking._id}`);
@@ -257,40 +338,41 @@ class RinggitPayService {
         qrCode: booking.qrCode,
         passcode: booking.passcode,
       });
-
-      // Also notify admin
-      const admins = await User.find({
-        role: { $in: ["admin", "superadmin"] },
-      });
-      for (const admin of admins) {
-        await emailService.sendAdminBookingCreated(admin.email, {
-          bookingId: booking._id.toString(),
-          userName: `${user.firstName} ${user.lastName}`,
-          userEmail: user.email,
-          parkingLotName: lot?.name || "N/A",
-          bookingDate: new Date(booking.date).toLocaleDateString(),
-          startTime: booking.startTime,
-          endTime: booking.endTime,
-          vehicleInfo: vehicle
-            ? `${vehicle.make} ${vehicle.model} (${vehicle.licensePlate})`
-            : "N/A",
-          totalAmount: booking.totalAmount,
-          currency: booking.currency,
-        });
-      }
     }
+  }
+
+  /**
+   * Handle pending payment
+   */
+  private async handlePaymentPending(
+    orderId: string,
+    payload: Record<string, string>,
+  ): Promise<void> {
+    const booking = await Booking.findOne({ _id: orderId });
+
+    if (!booking) {
+      logger.warn(`Booking not found for order: ${orderId}`);
+      return;
+    }
+
+    booking.paymentStatus = "pending";
+    booking.transactionId = payload.rp_transactionId || "";
+    await booking.save();
+
+    logger.info(`Payment pending for booking: ${booking._id}`);
   }
 
   /**
    * Handle failed payment
    */
   private async handlePaymentFailed(
-    payload: RinggitPayWebhookPayload,
+    orderId: string,
+    payload: Record<string, string>,
   ): Promise<void> {
-    const booking = await Booking.findOne({ transactionId: payload.orderId });
+    const booking = await Booking.findOne({ _id: orderId });
 
     if (!booking) {
-      logger.warn(`Booking not found for order: ${payload.orderId}`);
+      logger.warn(`Booking not found for order: ${orderId}`);
       return;
     }
 
@@ -301,122 +383,30 @@ class RinggitPayService {
   }
 
   /**
-   * Handle successful refund
+   * Parse redirect response from RinggitPay
    */
-  private async handleRefundSuccess(
-    payload: RinggitPayWebhookPayload,
-  ): Promise<void> {
-    const booking = await Booking.findOne({ transactionId: payload.orderId });
-
-    if (!booking) {
-      logger.warn(`Booking not found for order: ${payload.orderId}`);
-      return;
-    }
-
-    booking.refundStatus = "completed";
-    booking.refundProcessedAt = new Date();
-    booking.paymentStatus = "refunded";
-    await booking.save();
-
-    logger.info(`Refund completed for booking: ${booking._id}`);
-
-    // Send refund confirmation email
-    const user = await User.findById(booking.userId);
-    if (user) {
-      await emailService.sendRefundProcessed(user.email, {
-        userName: `${user.firstName} ${user.lastName}`,
-        bookingId: booking._id.toString(),
-        refundId: booking.refundId,
-        refundAmount: booking.refundAmount || 0,
-        currency: booking.currency,
-        processedDate: new Date().toLocaleDateString(),
-      });
-    }
-  }
-
-  /**
-   * Handle failed refund
-   */
-  private async handleRefundFailed(
-    payload: RinggitPayWebhookPayload,
-  ): Promise<void> {
-    const booking = await Booking.findOne({ transactionId: payload.orderId });
-
-    if (!booking) {
-      logger.warn(`Booking not found for order: ${payload.orderId}`);
-      return;
-    }
-
-    booking.refundStatus = "failed";
-    await booking.save();
-
-    logger.error(`Refund failed for booking: ${booking._id}`);
-
-    // Send refund failed email
-    const user = await User.findById(booking.userId);
-    if (user) {
-      await emailService.sendRefundFailed(user.email, {
-        userName: `${user.firstName} ${user.lastName}`,
-        bookingId: booking._id.toString(),
-        refundAmount: booking.refundAmount || 0,
-        currency: booking.currency,
-        errorMessage: (payload.metadata?.reason as string) || "Unknown error",
-      });
-    }
-  }
-
-  /**
-   * Get payment status
-   */
-  async getPaymentStatus(paymentId: string): Promise<{
+  parseRedirectResponse(queryParams: Record<string, string>): {
     success: boolean;
-    status?: string;
-    amount?: number;
-    message?: string;
-  }> {
-    try {
-      // Mock implementation - in production, call RinggitPay API
-      logger.info(`Getting payment status for: ${paymentId}`);
+    orderId: string;
+    status: string;
+    message: string;
+  } {
+    const statusCode = queryParams.rp_statusCode || "RP01";
+    const orderId = queryParams.rp_orderId || "";
 
-      return {
-        success: true,
-        status: "completed",
-        amount: 0,
-      };
-    } catch (error) {
-      logger.error("Failed to get payment status:", error);
-      return {
-        success: false,
-        message: "Failed to get payment status",
-      };
-    }
-  }
+    // Map status codes
+    const statusMessages: Record<string, string> = {
+      RP00: "Payment successful",
+      RP09: "Payment pending",
+      RP01: "Payment failed",
+    };
 
-  /**
-   * Get refund status
-   */
-  async getRefundStatus(refundId: string): Promise<{
-    success: boolean;
-    status?: string;
-    amount?: number;
-    message?: string;
-  }> {
-    try {
-      // Mock implementation - in production, call RinggitPay API
-      logger.info(`Getting refund status for: ${refundId}`);
-
-      return {
-        success: true,
-        status: "completed",
-        amount: 0,
-      };
-    } catch (error) {
-      logger.error("Failed to get refund status:", error);
-      return {
-        success: false,
-        message: "Failed to get refund status",
-      };
-    }
+    return {
+      success: statusCode === "RP00",
+      orderId: orderId,
+      status: StatusCodeMap[statusCode] || "failed",
+      message: statusMessages[statusCode] || "Unknown status",
+    };
   }
 }
 

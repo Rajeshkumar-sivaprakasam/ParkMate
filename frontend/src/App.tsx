@@ -8,6 +8,7 @@ import MyBookingsPage from './pages/MyBookingsPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
 import VehiclesPage from './pages/VehiclesPage';
+import CheckoutPage from './pages/CheckoutPage';
 
 function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { isAuthenticated, user } = useAuthStore();
@@ -31,6 +32,11 @@ function App() {
       
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
+        <Route path="/checkout" element={
+          <ProtectedRoute>
+            <CheckoutPage />
+          </ProtectedRoute>
+        } />
         <Route path="/bookings" element={
           <ProtectedRoute>
             <MyBookingsPage />
