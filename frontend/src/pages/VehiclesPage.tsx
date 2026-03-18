@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Car, Trash2, Edit2, Loader2, X } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { toast } from 'sonner';
+import { RJButton, RJInput } from '@/components/ui';
 
 interface Vehicle {
   _id: string;
@@ -160,13 +161,13 @@ export default function VehiclesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">My Vehicles</h1>
-        <button
+        <RJButton
+          variant="primary"
           onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center space-x-2"
+          leftIcon={<Plus className="w-4 h-4" />}
         >
-          <Plus className="w-4 h-4" />
-          <span>Add Vehicle</span>
-        </button>
+          Add Vehicle
+        </RJButton>
       </div>
 
       {vehicles.length === 0 ? (

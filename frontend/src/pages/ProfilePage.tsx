@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Building2, Lock, Loader2, Save, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Phone, Building2, Lock, Save, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { RJButton, RJInput, RJModal, RJModalHeader, RJModalBody, RJModalFooter } from '@/components/ui';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -246,18 +247,14 @@ export default function ProfilePage() {
         </div>
 
         <div className="flex justify-end mt-6">
-          <button
+          <RJButton
+            variant="primary"
             onClick={handleSaveProfile}
-            disabled={saving}
-            className="btn-primary flex items-center gap-2"
+            loading={saving}
+            leftIcon={<Save className="w-4 h-4" />}
           >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
             Save Changes
-          </button>
+          </RJButton>
         </div>
       </div>
 
@@ -279,124 +276,72 @@ export default function ProfilePage() {
               <h3 className="font-medium text-gray-900">Password</h3>
               <p className="text-sm text-gray-500">Change your account password</p>
             </div>
-            <button
+            <RJButton
+              variant="outline"
+              size="sm"
               onClick={() => setShowPasswordModal(true)}
-              className="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-sm font-medium"
             >
               Change Password
-            </button>
+            </RJButton>
           </div>
         </div>
       </div>
 
       {/* Password Change Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
-                <button
-                  onClick={() => setShowPasswordModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <Lock className="w-5 h-5" />
+      <RJModal
+        open={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        title="Change Password"
+      >
+        <RJModalBody>
+          <div className="space-y-4">
+            <RJInput
+              label="Current Password"
+              type={showCurrentPassword ? 'text' : 'password'}
+              placeholder="Enter current password"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+              rightAddon={
+                <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+                  {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Current Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showCurrentPassword ? 'text' : 'password'}
-                      value={passwordForm.currentPassword}
-                      onChange={(e) =>
-                        setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
-                      }
-                      className="input pr-10"
-                      placeholder="Enter current password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                    >
-                      {showCurrentPassword ? (
-                        <EyeOff className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <Eye className="w-5 h-5 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    New Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      value={passwordForm.newPassword}
-                      onChange={(e) =>
-                        setPasswordForm({ ...passwordForm, newPassword: e.target.value })
-                      }
-                      className="input pr-10"
-                      placeholder="Enter new password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                    >
-                      {showNewPassword ? (
-                        <EyeOff className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <Eye className="w-5 h-5 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) =>
-                      setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
-                    }
-                    className="input"
-                    placeholder="Confirm new password"
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => setShowPasswordModal(false)}
-                    className="flex-1 btn-secondary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleChangePassword}
-                    disabled={
-                      saving ||
-                      !passwordForm.currentPassword ||
-                      !passwordForm.newPassword ||
-                      !passwordForm.confirmPassword
-                    }
-                    className="flex-1 btn-primary"
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Change Password'}
-                  </button>
-                </div>
-              </div>
-            </div>
+              }
+            />
+            <RJInput
+              label="New Password"
+              type={showNewPassword ? 'text' : 'password'}
+              placeholder="Enter new password"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+              rightAddon={
+                <button type="button" onClick={() => setShowNewPassword(!showNewPassword)}>
+                  {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              }
+            />
+            <RJInput
+              label="Confirm New Password"
+              type="password"
+              placeholder="Confirm new password"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+            />
           </div>
-        </div>
-      )}
+        </RJModalBody>
+        <RJModalFooter>
+          <RJButton variant="outline" onClick={() => setShowPasswordModal(false)}>
+            Cancel
+          </RJButton>
+          <RJButton
+            variant="primary"
+            onClick={handleChangePassword}
+            loading={saving}
+            disabled={!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
+          >
+            Change Password
+          </RJButton>
+        </RJModalFooter>
+      </RJModal>
     </div>
   );
 }

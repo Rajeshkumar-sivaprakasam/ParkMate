@@ -13,6 +13,7 @@ import {
   Shield
 } from 'lucide-react';
 import { useState } from 'react';
+import { RJButton, RJAvatar } from '@/components/ui';
 
 export default function Layout() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -73,28 +74,25 @@ export default function Layout() {
               {isAuthenticated ? (
                 <>
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary-700">
-                        {user?.firstName?.[0]}{user?.lastName?.[0]}
-                      </span>
-                    </div>
+                    <RJAvatar
+                      fallback={`${user?.firstName?.[0]}${user?.lastName?.[0]}`}
+                      size="sm"
+                    />
                     <span className="text-sm font-medium text-gray-700">
                       {user?.firstName}
                     </span>
                   </div>
-                  <button
+                  <RJButton
+                    variant="ghost"
+                    size="sm"
                     onClick={logout}
-                    className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Logout</span>
-                  </button>
+                    Logout
+                  </RJButton>
                 </>
               ) : (
-                <Link
-                  to="/login"
-                  className="btn-primary"
-                >
+                <Link to="/login" className="btn-primary px-4 py-2 text-sm font-medium">
                   Sign In
                 </Link>
               )}

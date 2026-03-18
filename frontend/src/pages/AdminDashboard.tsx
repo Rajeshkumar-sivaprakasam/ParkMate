@@ -24,6 +24,7 @@ import {
 import { useAuthStore } from '../stores/authStore';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { RJButton, RJInput, RJModal, RJModalHeader, RJModalBody, RJModalFooter, RJStatCard } from '@/components/ui';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -417,39 +418,16 @@ export default function AdminDashboard() {
     { id: 'organizations' as TabType, label: 'Organizations', icon: Building2 },
   ];
 
-  const StatCard = ({ 
-    title, 
-    value, 
-    icon: Icon, 
-    trend, 
-    trendValue,
-    color 
-  }: { 
-    title: string; 
-    value: string | number; 
-    icon: React.ElementType; 
-    trend?: 'up' | 'down';
-    trendValue?: string;
-    color: string;
-  }) => (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500 mb-1">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          {trend && trendValue && (
-            <div className={`flex items-center mt-2 text-sm ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-              {trend === 'up' ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-              <span>{trendValue}</span>
-            </div>
-          )}
-        </div>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
-          <Icon className="w-6 h-6" />
-        </div>
-      </div>
-    </div>
-  );
+  // RJStatCard mapping for icon colors
+  const getIconColor = (colorClass: string): 'primary' | 'success' | 'danger' | 'warning' | 'info' | 'purple' => {
+    if (colorClass.includes('blue')) return 'primary';
+    if (colorClass.includes('green')) return 'success';
+    if (colorClass.includes('red')) return 'danger';
+    if (colorClass.includes('orange') || colorClass.includes('amber')) return 'warning';
+    if (colorClass.includes('cyan') || colorClass.includes('teal')) return 'info';
+    if (colorClass.includes('purple')) return 'purple';
+    return 'primary';
+  };
 
   if (loading) {
     return (
@@ -602,51 +580,51 @@ export default function AdminDashboard() {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
+            <RJStatCard
               title="Today's Bookings"
               value={stats?.todayBookings || 0}
               icon={Calendar}
-              color="bg-blue-100 text-blue-600"
+              iconColor={getIconColor('bg-blue-100 text-blue-600')}
             />
-            <StatCard
+            <RJStatCard
               title="Today's Revenue"
               value={`RM ${(stats?.todayRevenue || 0).toFixed(2)}`}
               icon={DollarSign}
-              color="bg-green-100 text-green-600"
+              iconColor="success"
             />
-            <StatCard
+            <RJStatCard
               title="Active Users"
               value={stats?.activeUsers || 0}
               icon={Users}
-              color="bg-purple-100 text-purple-600"
+              iconColor="purple"
             />
-            <StatCard
+            <RJStatCard
               title="Occupancy Rate"
               value={`${(stats?.occupancyRate || 0).toFixed(1)}%`}
               icon={Car}
-              color="bg-orange-100 text-orange-600"
+              iconColor="warning"
             />
           </div>
 
           {/* Additional Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
+            <RJStatCard
               title="Total Parking Lots"
               value={stats?.totalLots || 0}
               icon={MapPin}
-              color="bg-cyan-100 text-cyan-600"
+              iconColor="info"
             />
-            <StatCard
+            <RJStatCard
               title="Available Spots"
               value={stats?.availableSpots || 0}
               icon={Car}
-              color="bg-teal-100 text-teal-600"
+              iconColor="success"
             />
-            <StatCard
+            <RJStatCard
               title="Pending Refunds"
               value={stats?.pendingRefunds || 0}
               icon={CreditCard}
-              color="bg-red-100 text-red-600"
+              iconColor="danger"
             />
           </div>
 

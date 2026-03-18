@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Clock, DollarSign, Zap, Car, Loader2, X, Calendar, Map, List, Check, CreditCard, Smartphone, Building } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { toast } from 'sonner';
+import { RJButton, RJInput, RJModal, RJModalHeader, RJModalBody, RJModalFooter, RJBadge } from '@/components/ui';
 
 interface ParkingLot {
   _id: string;

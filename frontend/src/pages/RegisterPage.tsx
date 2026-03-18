@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Car, Mail, Lock, User, Phone, Building2, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Car, Mail, Lock, User, Phone, Building2, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { RJButton, RJInput } from '@/components/ui';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -48,7 +49,6 @@ export default function RegisterPage() {
 
       if (response.data.success) {
         toast.success('Account created successfully!');
-        // Auto-login after registration
         login(response.data.data.user, response.data.data.token);
         navigate('/');
       }
@@ -81,134 +81,80 @@ export default function RegisterPage() {
         <div className="card p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  First Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="input pl-10"
-                    placeholder="John"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Last Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="input pl-10"
-                    placeholder="Doe"
-                    required
-                  />
-                </div>
-              </div>
+              <RJInput
+                label="First Name"
+                placeholder="John"
+                leftAddon={<User className="w-5 h-5" />}
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                required
+              />
+              <RJInput
+                label="Last Name"
+                placeholder="Doe"
+                leftAddon={<User className="w-5 h-5" />}
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                required
+              />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="input pl-10"
-                  placeholder="john@example.com"
-                  required
-                />
-              </div>
-            </div>
+            <RJInput
+              label="Email Address"
+              type="email"
+              placeholder="john@example.com"
+              leftAddon={<Mail className="w-5 h-5" />}
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="input pl-10"
-                  placeholder="+60 123 456 789"
-                />
-              </div>
-            </div>
+            <RJInput
+              label="Phone Number"
+              type="tel"
+              placeholder="+60 123 456 789"
+              leftAddon={<Phone className="w-5 h-5" />}
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Company (Optional)
-              </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  className="input pl-10"
-                  placeholder="Acme Inc."
-                />
-              </div>
-            </div>
+            <RJInput
+              label="Company (Optional)"
+              placeholder="Acme Inc."
+              leftAddon={<Building2 className="w-5 h-5" />}
+              value={formData.company}
+              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="input pl-10 pr-10"
-                  placeholder="••••••••"
-                  required
-                  minLength={6}
-                />
+            <RJInput
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              leftAddon={<Lock className="w-5 h-5" />}
+              rightAddon={
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  className="focus:outline-none"
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5 text-gray-400" />
-                  ) : (
-                    <Eye className="w-5 h-5 text-gray-400" />
-                  )}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
-              </div>
-            </div>
+              }
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              minLength={6}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="input pl-10"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-            </div>
+            <RJInput
+              label="Confirm Password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              leftAddon={<Lock className="w-5 h-5" />}
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              required
+            />
 
             <div className="flex items-start">
               <input
@@ -229,20 +175,15 @@ export default function RegisterPage() {
               </label>
             </div>
 
-            <button
+            <RJButton
               type="submit"
-              disabled={loading}
-              className="w-full btn-primary flex items-center justify-center gap-2"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={loading}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Creating Account...
-                </>
-              ) : (
-                'Create Account'
-              )}
-            </button>
+              Create Account
+            </RJButton>
           </form>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, MapPin, Clock, Car, X, Download, RefreshCw, Check, XCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { toast } from 'sonner';
+import { RJButton, RJModal, RJModalHeader, RJModalBody, RJModalFooter, RJBadge } from '@/components/ui';
 
 interface Booking {
   _id: string;
