@@ -625,6 +625,7 @@ router.post("/:id/pay", authenticate, async (req: AuthRequest, res, next) => {
 
     // Create payment via RinggitPay
     const frontendUrl = config.frontendUrl;
+    const callbackUrl = `${frontendUrl}/api/webhooks/ringgitpay`;
     const paymentResult = await ringgitPayService.createPayment({
       amount: Number(booking.totalAmount),
       currency: booking.currency || "MYR",
@@ -633,7 +634,7 @@ router.post("/:id/pay", authenticate, async (req: AuthRequest, res, next) => {
       customerEmail: user.email,
       customerPhone: user.phone || "",
       description: `Parking booking at ${(booking.lotId as any)?.name || "Parking Lot"}`,
-      callbackUrl: `${config.port ? `https://parkatwill.base44.app` : frontendUrl}/api/webhooks/ringgitpay`,
+      callbackUrl: callbackUrl,
       redirectUrl: `${frontendUrl}/checkout?bookingId=${booking._id}`,
     });
 

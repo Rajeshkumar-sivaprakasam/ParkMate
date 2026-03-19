@@ -1,10 +1,12 @@
 import { Router, Response, NextFunction } from "express";
 import { body, param } from "express-validator";
+import mongoose from "mongoose";
 import { authenticate, authorize } from "../middleware/auth.js";
 import {
   Booking,
   User,
   ParkingLot,
+  ParkingSpot,
   Vehicle,
   AuditLog,
 } from "../models/index.js";
@@ -406,6 +408,115 @@ router.post(
         message: `${pendingBookings.length} bookings approved successfully`,
         data: {
           approved: updatedBookings.length,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Assign/change spot for a booking (admin only)
+router.post(
+  "/:id/assign-spot",
+  authenticate,
+  authorize("admin", "superadmin"),
+  [
+    param("id").isMongoId().withMessage("Valid booking ID is required"),
+    body("spotId").notEmpty().withMessage("Spot ID is required"),
+  ],
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { spotId } = req.body;
+      const booking = await Booking.findById(req.params.id);
+
+      if (!booking) {
+        throw new AppError("Booking not found", 404, "BOOKING_NOT_FOUND");
+      }
+
+      // Check if spot exists
+      const spot = await ParkingSpot.findById(spotId);
+      if (!spot) {
+        throw new AppError("Parking spot not found", 404, "SPOT_NOT_FOUND");
+      }
+
+      // Verify spot belongs to the same lot
+      if (spot.lotId.toString() !== booking.lotId.toString()) {
+        throw new AppError(
+          "Spot does not belong to the booking's parking lot",
+          400,
+          "SPOT_LOT_MISMATCH",
+        );
+      }
+
+      // Check if spot is available
+      if (spot.status !== "available") {
+        throw new AppError(
+          "Parking spot is not available",
+          400,
+          "SPOT_NOT_AVAILABLE",
+        );
+      }
+
+      // Release old spot if assigned
+      if (booking.spotId) {
+        const oldSpot = await ParkingSpot.findById(booking.spotId);
+        if (oldSpot && oldSpot.status === "reserved") {
+          oldSpot.status = "available";
+          await oldSpot.save();
+        }
+      }
+
+      // Assign new spot
+      booking.spotId = new mongoose.Types.ObjectId(spotId) as any;
+      spot.status = "reserved";
+      await spot.save();
+      await booking.save();
+
+      // Create audit log
+      await AuditLog.create({
+        userId: req.user?.userId,
+        action: "admin_action",
+        entityType: "Booking",
+        entityId: booking._id,
+        metadata: {
+          action: "assign_spot",
+          spotId,
+          spotNumber: spot.spotNumber,
+        },
+        ipAddress: req.ip,
+        userAgent: req.get("User-Agent"),
+      });
+
+      // Send email to user about spot assignment
+      const user = await User.findById(booking.userId);
+      if (user) {
+        await emailService.sendBookingConfirmation(user.email, {
+          userName: `${user.firstName} ${user.lastName}`,
+          bookingId: booking._id.toString(),
+          parkingLotName:
+            (await ParkingLot.findById(booking.lotId))?.name || "N/A",
+          parkingLotAddress:
+            (await ParkingLot.findById(booking.lotId))?.address || "N/A",
+          bookingDate: new Date(booking.date).toLocaleDateString(),
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          vehicleInfo: (await Vehicle.findById(booking.vehicleId))
+            ? `${(await Vehicle.findById(booking.vehicleId))?.make} ${(await Vehicle.findById(booking.vehicleId))?.model} (${(await Vehicle.findById(booking.vehicleId))?.licensePlate})`
+            : "N/A",
+          totalAmount: booking.totalAmount,
+          currency: booking.currency,
+          qrCode: booking.qrCode,
+          passcode: booking.passcode,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Spot ${spot.spotNumber} assigned to booking successfully`,
+        data: {
+          booking,
+          spot,
         },
       });
     } catch (error) {

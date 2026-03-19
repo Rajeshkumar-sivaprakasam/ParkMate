@@ -20,6 +20,8 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState<BookingPaymentStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paymentFormHtml, setPaymentFormHtml] = useState<string | null>(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
   
   const bookingId = searchParams.get('bookingId');
   const paymentStatusFromUrl = searchParams.get('status');
@@ -114,9 +116,23 @@ export default function CheckoutPage() {
       
       const result = await response.json();
       
-      if (result.success && result.data.checkoutUrl) {
-        // Redirect to payment gateway
-        window.location.href = result.data.checkoutUrl;
+      if (result.success) {
+        // If payment form is returned, display and auto-submit it
+        if (result.data.paymentFormHtml) {
+          setPaymentFormHtml(result.data.paymentFormHtml);
+          setShowPaymentForm(true);
+          // Auto-submit after rendering
+          setTimeout(() => {
+            const form = document.getElementById('ringgitpay-form') as HTMLFormElement | null;
+            if (form) form.submit();
+          }, 500);
+        } else if (result.data.checkoutUrl) {
+          // Redirect to payment gateway
+          window.location.href = result.data.checkoutUrl;
+        } else {
+          toast.error('Unable to initiate payment. Please try again.');
+          setLoading(false);
+        }
       } else {
         toast.error(result.message || 'Failed to initiate payment');
         setLoading(false);
@@ -164,6 +180,20 @@ export default function CheckoutPage() {
   const isPaid = paymentStatus?.paymentStatus === 'completed';
   const isPending = paymentStatus?.paymentStatus === 'pending';
   const isFailed = paymentStatus?.paymentStatus === 'failed';
+
+  // If payment form is ready, show it
+  if (showPaymentForm && paymentFormHtml) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center">
+        <div className="text-center mb-6">
+          <Loader2 className="w-12 h-12 animate-spin text-primary-600 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Redirecting to Payment...</h2>
+          <p className="text-gray-600">Please wait while we redirect you to the payment gateway.</p>
+        </div>
+        <div dangerouslySetInnerHTML={{ __html: paymentFormHtml }} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-lg mx-auto py-8 px-4">

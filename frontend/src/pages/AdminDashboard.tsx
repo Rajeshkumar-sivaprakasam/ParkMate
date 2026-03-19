@@ -68,12 +68,26 @@ export default function AdminDashboard() {
   const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
   const [approvalsLoading, setApprovalsLoading] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [showAssignSpotModal, setShowAssignSpotModal] = useState(false);
+  const [selectedBookingForSpot, setSelectedBookingForSpot] = useState<any>(null);
+  const [availableSpots, setAvailableSpots] = useState<any[]>([]);
+  const [spotsLoading, setSpotsLoading] = useState(false);
 
   // Parking Lots State
   const [parkingLots, setParkingLots] = useState<any[]>([]);
   const [lotsLoading, setLotsLoading] = useState(false);
   const [showLotModal, setShowLotModal] = useState(false);
   const [editingLot, setEditingLot] = useState<any>(null);
+  const [showSlotsModal, setShowSlotsModal] = useState(false);
+  const [selectedLotForSlots, setSelectedLotForSlots] = useState<any>(null);
+  const [parkingSlots, setParkingSlots] = useState<any[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [generateSlotsForm, setGenerateSlotsForm] = useState({
+    rows: 5,
+    spotsPerRow: 10,
+    floors: 1,
+  });
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [lotForm, setLotForm] = useState({
     name: '',
     address: '',
@@ -216,6 +230,53 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleOpenAssignSpot = async (booking: any) => {
+    setSelectedBookingForSpot(booking);
+    setShowAssignSpotModal(true);
+    
+    // Fetch available spots for this lot
+    if (booking.lotId?._id) {
+      setSpotsLoading(true);
+      try {
+        const response = await axios.get(
+          `${API_URL}/parking-spots/lot/${booking.lotId._id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (response.data.success) {
+          setAvailableSpots(response.data.data.spots || []);
+        }
+      } catch (err) {
+        console.error('Error fetching spots:', err);
+      } finally {
+        setSpotsLoading(false);
+      }
+    }
+  };
+
+  const handleAssignSpot = async (spotId: string) => {
+    if (!selectedBookingForSpot) return;
+    
+    try {
+      setProcessingId(selectedBookingForSpot._id);
+      const response = await axios.post(
+        `${API_URL}/bookings/${selectedBookingForSpot._id}/assign-spot`,
+        { spotId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success) {
+        toast.success(`Spot ${response.data.data.spot?.spotNumber} assigned successfully`);
+        setShowAssignSpotModal(false);
+        setSelectedBookingForSpot(null);
+        fetchPendingApprovals();
+      }
+    } catch (err: any) {
+      console.error('Error assigning spot:', err);
+      toast.error(err.response?.data?.message || 'Failed to assign spot');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   // Fetch parking lots
   const fetchParkingLots = async () => {
     setLotsLoading(true);
@@ -268,6 +329,50 @@ export default function AdminDashboard() {
       fetchParkingLots();
     } catch (err) {
       toast.error('Failed to delete parking lot');
+    }
+  };
+
+  // View parking slots for a lot
+  const handleViewSlots = async (lot: any) => {
+    setSelectedLotForSlots(lot);
+    setShowSlotsModal(true);
+    setSlotsLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}/parking-spots/lot/${lot._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.data.success) {
+        setParkingSlots(response.data.data.spots || []);
+      }
+    } catch (err) {
+      console.error('Error fetching parking slots:', err);
+      setParkingSlots([]);
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
+
+  // Generate parking slots
+  const handleGenerateSlots = async () => {
+    if (!selectedLotForSlots) return;
+    try {
+      await axios.post(
+        `${API_URL}/parking-spots/generate`,
+        {
+          lotId: selectedLotForSlots._id,
+          rows: generateSlotsForm.rows,
+          spotsPerRow: generateSlotsForm.spotsPerRow,
+          floors: generateSlotsForm.floors,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Parking slots generated successfully');
+      setShowGenerateModal(false);
+      // Refresh slots
+      handleViewSlots(selectedLotForSlots);
+      fetchParkingLots();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to generate slots');
     }
   };
 
@@ -537,6 +642,13 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => handleOpenAssignSpot(booking)}
+                        className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        Assign Spot
+                      </button>
+                      <button
                         onClick={() => handleApprove(booking._id)}
                         disabled={processingId === booking._id}
                         className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
@@ -796,6 +908,12 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div className="mt-4 pt-4 border-t border-gray-200 flex space-x-2">
+                      <button 
+                        onClick={() => handleViewSlots(lot)}
+                        className="flex-1 text-sm text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1"
+                      >
+                        <Car className="w-3 h-3" /> Slots
+                      </button>
                       <button 
                         onClick={() => { setEditingLot(lot); setLotForm({
                           name: lot.name, address: lot.address,
@@ -1570,6 +1688,232 @@ export default function AdminDashboard() {
                     Create User
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Parking Slots Modal */}
+      {showSlotsModal && selectedLotForSlots && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Parking Slots</h2>
+                <p className="text-sm text-gray-500">{selectedLotForSlots.name}</p>
+              </div>
+              <button onClick={() => setShowSlotsModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 flex-1 overflow-auto">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 bg-green-500 rounded"></span>
+                    <span className="text-sm text-gray-600">Available</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 bg-red-500 rounded"></span>
+                    <span className="text-sm text-gray-600">Occupied</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 bg-yellow-500 rounded"></span>
+                    <span className="text-sm text-gray-600">Reserved</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 bg-gray-400 rounded"></span>
+                    <span className="text-sm text-gray-600">Maintenance</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowGenerateModal(true)}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Generate Slots
+                </button>
+              </div>
+              {slotsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+                </div>
+              ) : parkingSlots.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <Car className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No parking slots found</p>
+                  <button 
+                    onClick={() => setShowGenerateModal(true)}
+                    className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
+                  >
+                    Generate slots for this lot
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-2">
+                  {parkingSlots.map((slot) => (
+                    <div
+                      key={slot._id}
+                      className={`p-2 rounded-lg text-center border-2 transition-all ${
+                        slot.isAvailable 
+                          ? 'bg-green-50 border-green-200 hover:border-green-400' 
+                          : slot.status === 'occupied' || slot.isBooked
+                          ? 'bg-red-50 border-red-200'
+                          : slot.status === 'reserved'
+                          ? 'bg-yellow-50 border-yellow-200'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="text-xs font-semibold text-gray-700">{slot.spotNumber}</div>
+                      <div className="text-xs text-gray-500">{slot.spotType || 'STD'}</div>
+                      <div className="text-xs text-gray-400">F{slot.floor || 1}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {parkingSlots.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    Total: {parkingSlots.length} slots
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Available: {parkingSlots.filter(s => s.isAvailable).length}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Slots Modal */}
+      {showGenerateModal && selectedLotForSlots && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Generate Parking Slots</h2>
+                <button onClick={() => setShowGenerateModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                This will create parking slots for <strong>{selectedLotForSlots.name}</strong>. 
+                Existing slots will be replaced.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Number of Rows</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="26"
+                    value={generateSlotsForm.rows}
+                    onChange={(e) => setGenerateSlotsForm({ ...generateSlotsForm, rows: parseInt(e.target.value) || 1 })}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Spots Per Row</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={generateSlotsForm.spotsPerRow}
+                    onChange={(e) => setGenerateSlotsForm({ ...generateSlotsForm, spotsPerRow: parseInt(e.target.value) || 1 })}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Number of Floors</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={generateSlotsForm.floors}
+                    onChange={(e) => setGenerateSlotsForm({ ...generateSlotsForm, floors: parseInt(e.target.value) || 1 })}
+                    className="input"
+                  />
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-sm text-gray-600">
+                    This will create <strong>{generateSlotsForm.rows * generateSlotsForm.spotsPerRow * generateSlotsForm.floors}</strong> parking slots
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4 mt-4 border-t border-gray-200">
+                <button 
+                  onClick={() => setShowGenerateModal(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleGenerateSlots}
+                  className="flex-1 btn-primary"
+                >
+                  Generate
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Spot Modal */}
+      {showAssignSpotModal && selectedBookingForSpot && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Assign Parking Spot</h2>
+                <button onClick={() => { setShowAssignSpotModal(false); setSelectedBookingForSpot(null); }} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Select a parking spot for booking by <strong>{selectedBookingForSpot.userId?.firstName} {selectedBookingForSpot.userId?.lastName}</strong>
+              </p>
+              
+              {spotsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-500">Loading spots...</span>
+                </div>
+              ) : availableSpots.length > 0 ? (
+                <div className="grid grid-cols-5 gap-2 max-h-64 overflow-y-auto border rounded-lg p-2">
+                  {availableSpots.filter(s => s.status === 'available').map((spot) => (
+                    <button
+                      key={spot._id}
+                      onClick={() => handleAssignSpot(spot._id)}
+                      className="p-3 text-sm rounded-lg border bg-white hover:bg-blue-50 hover:border-blue-300 transition-all"
+                    >
+                      <div className="font-semibold">{spot.spotNumber}</div>
+                      <div className="text-xs text-gray-500">{spot.spotType || 'Standard'}</div>
+                      <div className="text-xs text-gray-500">F{spot.floor || 1}</div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                  <p className="text-yellow-700">No available spots found for this parking lot.</p>
+                  <p className="text-sm text-yellow-600 mt-1">Please generate spots first.</p>
+                </div>
+              )}
+              
+              {availableSpots.filter(s => s.status === 'available').length > 0 && (
+                <p className="text-sm text-gray-500 mt-3">
+                  {availableSpots.filter(s => s.status === 'available').length} spots available
+                </p>
+              )}
+              
+              <div className="flex gap-3 pt-4 mt-4 border-t border-gray-200">
+                <button 
+                  onClick={() => { setShowAssignSpotModal(false); setSelectedBookingForSpot(null); }}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>

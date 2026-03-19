@@ -184,8 +184,22 @@ export default function HomePage() {
   };
 
   const handleProcessPayment = async () => {
-    // Skip payment method selection - go directly to RiggitPay
+    // Skip payment method selection - go directly to payment
     createBooking();
+  };
+
+  // State for showing payment modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingPaymentForm, setPendingPaymentForm] = useState<string | null>(null);
+  const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
+  const [pendingTotalAmount, setPendingTotalAmount] = useState<number>(0);
+
+  // Submit payment form returned from backend
+  const submitPaymentForm = (paymentFormHtml: string, bookingId: string, amount: number) => {
+    setPendingPaymentForm(paymentFormHtml);
+    setPendingBookingId(bookingId);
+    setPendingTotalAmount(amount);
+    setShowPaymentModal(true);
   };
 
   const createBooking = async () => {
@@ -228,9 +242,17 @@ export default function HomePage() {
           const paymentResult = await paymentResponse.json();
           
           if (paymentResult.success) {
-            // Navigate to checkout page with booking ID
-            const checkoutUrl = `${window.location.origin}/checkout?bookingId=${booking._id}&amount=${booking.totalAmount}`;
-            window.location.href = checkoutUrl;
+            // If payment form is returned, show in modal
+            if (paymentResult.data.paymentFormHtml) {
+              submitPaymentForm(paymentResult.data.paymentFormHtml, booking._id, booking.totalAmount);
+            } else if (paymentResult.data.checkoutUrl) {
+              // Otherwise redirect to checkout URL
+              window.location.href = paymentResult.data.checkoutUrl;
+            } else {
+              // Fallback: navigate to checkout page
+              const checkoutUrl = `${window.location.origin}/checkout?bookingId=${booking._id}&amount=${booking.totalAmount}`;
+              window.location.href = checkoutUrl;
+            }
           } else {
             // If payment initiation fails, still show success
             setPaymentStatus('success');
@@ -569,12 +591,12 @@ export default function HomePage() {
                   )}
                 </div>
 
-                {/* Slot Selection */}
-                {selectedDate && selectedTime && endTime && (
+                {/* Slot Selection - Only for hourly bookings */}
+                {bookingType === 'hourly' && selectedDate && selectedTime && endTime && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       <MapPin className="w-4 h-4 inline mr-1" />
-                      Select Parking Spot
+                      Select Parking Spot {!selectedSpot && <span className="text-gray-400 font-normal">(Optional - will auto-assign if not selected)</span>}
                     </label>
                     {slotsLoading ? (
                       <div className="flex items-center justify-center py-4">
@@ -582,34 +604,62 @@ export default function HomePage() {
                         <span className="ml-2 text-sm text-gray-500">Loading spots...</span>
                       </div>
                     ) : availableSlots.length > 0 ? (
-                      <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
-                        {availableSlots.map((spot) => (
+                      <>
+                        <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
+                          {/* Auto-assign option */}
                           <button
-                            key={spot._id}
+                            key="auto-assign"
                             type="button"
-                            onClick={() => setSelectedSpot(spot._id)}
+                            onClick={() => setSelectedSpot('')}
                             className={`p-2 text-xs rounded-lg border transition-all ${
-                              selectedSpot === spot._id
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : spot.status === 'occupied'
+                              !selectedSpot
+                                ? 'bg-green-600 text-white border-green-600'
+                                : 'bg-white hover:bg-green-50 border-gray-200 text-gray-700'
+                            }`}
+                          >
+                            <div className="font-semibold">Auto</div>
+                            <div className="text-xs opacity-75">Assign</div>
+                          </button>
+                          {availableSlots.filter(s => s.isAvailable !== false).map((spot) => (
+                            <button
+                              key={spot._id}
+                              type="button"
+                              onClick={() => setSelectedSpot(spot._id)}
+                              className={`p-2 text-xs rounded-lg border transition-all ${
+                                selectedSpot === spot._id
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : spot.isAvailable === false || spot.status === 'occupied'
                                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
                                 : 'bg-white hover:bg-blue-50 border-gray-200 text-gray-700'
-                            }`}
-                            disabled={spot.status === 'occupied'}
-                          >
-                            <div className="font-semibold">{spot.spotNumber}</div>
-                            <div className="text-xs opacity-75">{spot.spotType || 'Standard'}</div>
-                            <div className="text-xs">{spot.floor || 'F1'}</div>
-                          </button>
-                        ))}
-                      </div>
+                              }`}
+                              disabled={spot.isAvailable === false || spot.status === 'occupied'}
+                            >
+                              <div className="font-semibold">{spot.spotNumber}</div>
+                              <div className="text-xs opacity-75">{spot.spotType || 'Standard'}</div>
+                              <div className="text-xs">{spot.floor ? `F${spot.floor}` : 'F1'}</div>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex justify-between mt-2">
+                          <p className="text-xs text-gray-500">
+                            {availableSlots.filter(s => s.isAvailable !== false).length} spots available
+                          </p>
+                          {selectedSpot && (
+                            <button 
+                              type="button"
+                              onClick={() => setSelectedSpot('')}
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              Clear selection
+                            </button>
+                          )}
+                        </div>
+                      </>
                     ) : (
-                      <p className="text-sm text-gray-500">No spots available for selected time.</p>
-                    )}
-                    {availableSlots.length > 0 && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {availableSlots.filter(s => s.status !== 'occupied').length} spots available
-                      </p>
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
+                        <p>No specific spots available for this time.</p>
+                        <p className="text-xs mt-1">An available spot will be automatically assigned when you book.</p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -734,6 +784,41 @@ export default function HomePage() {
                   ) : null}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal - Show payment form inline */}
+      {showPaymentModal && pendingPaymentForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Complete Payment</h2>
+                <button 
+                  onClick={() => { 
+                    setShowPaymentModal(false); 
+                    setPaymentStatus('success');
+                    setBookingData({ _id: pendingBookingId, totalAmount: pendingTotalAmount });
+                    setShowSuccessModal(true);
+                    setShowBookingModal(false);
+                    clearBookingForm();
+                    fetchParkingLots();
+                  }} 
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-600">Booking ID: {pendingBookingId}</p>
+                <p className="text-lg font-bold text-primary-600">RM {pendingTotalAmount?.toFixed(2)}</p>
+              </div>
+              <div dangerouslySetInnerHTML={{ __html: pendingPaymentForm }} />
+              <p className="text-xs text-gray-500 mt-4 text-center">
+                You will be redirected to complete payment. After payment, you will see the confirmation.
+              </p>
             </div>
           </div>
         </div>

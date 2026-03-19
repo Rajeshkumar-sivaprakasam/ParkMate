@@ -71,7 +71,8 @@ class RinggitPayService {
       : "https://ringgitpay.co/payment";
 
     // Parse API key format: AppId:RequestKey
-    const apiKeyFull = config.ringgitpay.apiKey;
+    const apiKeyFull =
+      config.ringgitpay.apiKey || "RPA-PARTAT-859:1XBY04XKW RPLIZU2V0MG";
     const parts = apiKeyFull.split(":");
     this.appId = parts[0] || "RPA-PARTAT-859";
     this.requestKey =
@@ -128,6 +129,28 @@ class RinggitPayService {
       );
     } catch (error) {
       logger.error("Response signature verification error:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Verify webhook signature
+   */
+  verifyWebhookSignature(rawBody: string, signature: string): boolean {
+    try {
+      const data = rawBody + this.responseKey;
+      const expectedSignature = crypto
+        .createHash("sha256")
+        .update(data)
+        .digest("hex")
+        .toUpperCase();
+
+      return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature),
+      );
+    } catch (error) {
+      logger.error("Webhook signature verification error:", error);
       return false;
     }
   }
